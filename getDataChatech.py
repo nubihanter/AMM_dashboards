@@ -37,7 +37,7 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
 
     if append:
         try:
-            df_produtos = pd.read_csv("produtos_combinados.csv")
+            df_produtos = pd.read_csv("data/produtos_combinados.csv")
             df_produtos['T007_Data_Emissao'] = pd.to_datetime(df_produtos['T007_Data_Emissao'], errors='coerce')
             ultima_data_produtos = df_produtos['T007_Data_Emissao'].max() if 'T007_Data_Emissao' in df_produtos.columns else ''
             print(f"✓ Arquivo existente de produtos carregado: {len(df_produtos)} registros. Última data de atualização: {ultima_data_produtos}")
@@ -45,7 +45,7 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             print("⚠️ Arquivos existentes não encontrados. Criando novos DataFrames.")
             df_produtos = pd.DataFrame()
         try:
-            df_notas_fiscais = pd.read_csv("notas_fiscais_combinadas.csv")
+            df_notas_fiscais = pd.read_csv("data/notas_fiscais_combinadas.csv")
             df_notas_fiscais['T007_Data_Emissao'] = pd.to_datetime(df_notas_fiscais['T007_Data_Emissao'], errors='coerce')
             ultima_data_notas_fiscais = df_notas_fiscais['T007_Data_Emissao'].max() if 'T007_Data_Emissao' in df_notas_fiscais.columns else ''
             print(f"✓ Arquivos existentes carregados: {len(df_produtos)} produtos e {len(df_notas_fiscais)} notas fiscais. Última data de atualização: {ultima_data_notas_fiscais}")
@@ -108,5 +108,5 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
 
 if __name__ == "__main__":
     df_notas_fiscais, df_produtos = get_raw_data()
-    df_notas_fiscais.to_csv("notas_fiscais_combinadas.csv", index=False)
-    df_produtos.to_csv("produtos_combinados.csv", index=False)
+    df_notas_fiscais.to_csv("data/notas_fiscais_combinadas.csv", index=False)
+    df_produtos.to_csv("data/produtos_combinados.csv", index=False)

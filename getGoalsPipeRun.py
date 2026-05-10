@@ -22,7 +22,7 @@ if __name__ == "__main__":
     
     # Passo 2: Buscar todas as metas
     print("📌 Passo 2: Buscando todas as metas cadastradas...")
-    all_goals = api.get_all_goals(show=100)
+    all_goals = api.get_goals(show=100)
     goals_list = all_goals.get("data", [])
     print(f"✓ {len(goals_list)} metas encontradas\n")
     
@@ -55,7 +55,7 @@ if __name__ == "__main__":
                     
                     # Adicionar ao dicionário
                     if user_id not in users_data:
-                        users_data[user_id]["nome"] = user_name
+                        users_data[user_id] = {"nome": user_name, "metas": []}
                     
                     users_data[user_id]["metas"].append({
                         "goal_id": goal_id,

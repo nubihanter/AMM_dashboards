@@ -36,14 +36,12 @@ st.markdown("""
 @st.cache_data
 def load_data():
     """Carrega o arquivo CSV combinado e limpo"""
-    file_path = "notas_fiscais_COMBINADAS_CLEAN.csv"
+    file_path = "data/notas_fiscais_combinadas_CLEAN.csv"
     
     # Verifica se arquivo limpo existe, caso contrário, prepara os dados
     if not os.path.exists(file_path):
         from data_preparation import load_and_clean_data
         df = load_and_clean_data(
-            file_epis="notas_fiscais_AMM_EPIS.csv",
-            file_solucoes="notas_fiscais_AMM_Solucoes.csv"
         )
         df.to_csv(file_path, index=False)
     else:
