@@ -1,6 +1,36 @@
 from integrations.chatechLib import HardnessAPI
 import pandas as pd
 
+def _remove_duplicates(df,subset, ultima_data):
+    # 1. Garantir que a coluna está em formato datetime
+    df['T007_Data_Emissao'] = pd.to_datetime(df['T007_Data_Emissao'], errors='coerce')
+    # 2. Separar o DataFrame em dois: Histórico (antigo) e Novos (para processar)
+    # Filtro: Data maior ou igual à última data conhecida
+    mask_novos = df['T007_Data_Emissao'] >= ultima_data
+    
+    df_historico = df[~mask_novos].copy()
+    df_novos = df[mask_novos].copy()
+    print(df_novos)
+
+    # 3. Aplicar a remoção de duplicatas APENAS no bloco de dados novos
+    # Aqui ele remove duplicatas dentro dos novos e também o que for repetido em relação ao ID/Empresa
+    df_novos.drop_duplicates(inplace=True,subset=subset,keep='first')
+
+    # 4. Concatenar os dois blocos de volta
+    df_final = pd.concat([df_historico, df_novos], ignore_index=True)
+# =================================================================
+    # 5. O PASSO QUE FALTAVA: A Varredura Final
+    # Garante que nada que entrou no df_novos já existia no df_historico.
+    # Como o histórico entrou primeiro no concat, o keep='first' mantém
+    # a versão mais antiga e apaga a nova intrusa.
+    # =================================================================
+    df_final.drop_duplicates(subset=subset, inplace=True, keep='first')
+
+    # 5. Ordenação final
+    df_final.sort_values('T007_Data_Emissao', inplace=True)
+
+    return df_final
+
 def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, notas_fiscais = True, append=True):
     api = HardnessAPI()
     api.login()
@@ -69,13 +99,11 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
     # Remover duplicatas apenas por T008_Id (para produtos) e T007_Id (para notas), mantendo a primeira ocorrência
     # Isto evita remover linhas legítimas devido a diferenças em formatação de data
     if not df_produtos.empty:
-        df_produtos['T007_Data_Emissao'] = pd.to_datetime(df_produtos['T007_Data_Emissao'], errors='coerce')
-        df_produtos.drop_duplicates(subset=['T008_Id',"Empresa"], inplace=True)
-        df_produtos.sort_values('T007_Data_Emissao', inplace=True)  # Ordena por data de emissão para facilitar análises futurasq
+        df_produtos['T008_Id'] = pd.to_numeric(df_produtos['T008_Id'], errors='coerce').astype('Int64')
+        df_produtos = _remove_duplicates(df_produtos,subset = ['T008_Id', "Empresa"], ultima_data=ultima_data_produtos)
     if not df_notas_fiscais.empty:
-        df_notas_fiscais['T007_Data_Emissao'] = pd.to_datetime(df_notas_fiscais['T007_Data_Emissao'], errors='coerce')
-        df_notas_fiscais.drop_duplicates(subset=['T007_Id',"Empresa"],inplace=True)
-        df_notas_fiscais.sort_values('T007_Data_Emissao', inplace=True)  # Ordena por data de emissão para facilitar análises futuras
+        df_notas_fiscais['T007_Id'] = pd.to_numeric(df_notas_fiscais['T007_Id'], errors='coerce').astype('Int64')
+        df_notas_fiscais = _remove_duplicates(df_notas_fiscais,subset=['T007_Id',"Empresa"], ultima_data=ultima_data_notas_fiscais)
     return df_notas_fiscais, df_produtos
 
 if __name__ == "__main__":
