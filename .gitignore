@@ -219,3 +219,6 @@ __marimo__/
 
 *.html
 *.csv
+test*.py
+*.xlsx
+*.json
