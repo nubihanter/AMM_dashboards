@@ -95,7 +95,7 @@ if __name__ == "__main__":
     # Passo 5: Exportar para JSON
     print("📌 Passo 5: Exportando para JSON...")
     
-    output_file = "metas_por_vendedores.json"
+    output_file = "data/metas_por_vendedores.json"
     
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(export_data, f, indent=2, ensure_ascii=False)

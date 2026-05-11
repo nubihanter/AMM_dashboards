@@ -29,10 +29,12 @@ class HardnessAPI:
         self.url_login = self.base_url + "/hardness3/outros/login/index.php"
         self.notafiscal_url = self.base_url + "/crm/crm001/grid/crm001GridPrincipalNotasFiscais/"
         self.produtos_url = self.base_url + "/crm/crm001/grid/crm001gridPrincipalProdutos/"
+        self.estoque_url = self.base_url + "/cad/cad002/grid/lista/"
         self.verbose = verbose
         self.grid_dicts = {
             self.notafiscal_url: "9a4a52124b9ef45ed11c682313457e66",
-            self.produtos_url: "417dd51bce34fe83280ebd6b01992a4f"
+            self.produtos_url: "417dd51bce34fe83280ebd6b01992a4f",
+            self.estoque_url: "113ae9ef32e0698528880c4e2d154f2b"
         }
 
 
@@ -228,6 +230,159 @@ class HardnessAPI:
         if "excluirLinha" in df.columns:
             df = df.drop(columns=["excluirLinha"])
         return df
+
+    def filtrar_estoque(self, codigo="!"):
+        """
+        Aplica o filtro na página de estoque, limpando todos os outros campos
+        e inserindo "!" no campo Código.
+        """
+        url = self.estoque_url
+        
+        payload = {
+            "ajax": "true",
+            "divIdRoot": "crm001",
+            "tab": "geral"
+        }
+
+        # Carrega a página do estoque
+        self.session.post(url, data=payload)
+        response_pagina = self.session.get(url, params=payload)
+        
+        soup = BeautifulSoup(response_pagina.text, 'html.parser')
+        
+        # 1. Encontra o formulário de filtro
+        form = soup.select_one('div.gridFiltro form')
+        if not form:
+            print("Formulário de filtro de estoque não encontrado!")
+            return False
+        
+        form_id = form['id']
+        print(f"Form ID do estoque encontrado: {form_id}")
+
+        # 2. Descobrir as chaves em Base64
+        filter_data = {}
+        
+        for input_tag in form.find_all('input'):
+            name = input_tag.get('name', '')
+            if not name: continue
+            
+            if name.endswith('-titulo'):
+                titulo = input_tag.get('value', '').lower()
+                base64_name = name.replace('-titulo', '') 
+                
+                # Procura pelo campo "código" (com ou sem acento)
+                if 'código' in titulo or 'codigo' in titulo:
+                    filter_data[base64_name] = codigo
+
+        # 3. Limpa TODOS os outros campos do filtro para garantir que venha "tudo limpo"
+        for input_tag in form.find_all(['input', 'select']):
+            name = input_tag.get('name')
+            if name and name not in filter_data:
+                if not name.endswith('-titulo'):
+                    filter_data[name] = ""
+
+        # 4. Procura o Hash do Grid no Javascript
+        grid_hash = ""
+        match_grid = re.search(r"encodeURIComponent\('([a-f0-9]{32})'\)", response_pagina.text)
+        if match_grid:
+            grid_hash = match_grid.group(1)
+        else:
+            print("Aviso: Não encontrou o hash do grid de estoque.")
+            return False
+
+        # 5. Monta e envia o payload
+        post_data = {
+            'ajax': 'true',
+            'filtroUID': form_id,
+            'grid': grid_hash,
+        }
+        post_data.update(filter_data)
+
+        filter_url = "/sistema/funcoes/gridFiltro/filtrar/"
+        full_url = f"{self.base_url.rstrip('/')}{filter_url}"
+
+        response_filter = self.session.post(full_url, data=post_data)
+
+        if response_filter.status_code == 200:
+            print("✅ Filtro de estoque aplicado com sucesso!")
+            # Recarrega o grid após filtrar
+            self.session.get(url, params={"ajax": "true"})
+            return True
+        else:
+            print(f"❌ Erro ao aplicar filtro no estoque: {response_filter.status_code}")
+            return False
+
+    def get_dados_estoque(self):
+        """
+        Extrai os dados paginados da url de estoque e retorna um DataFrame limpo.
+        """
+        url = self.estoque_url
+        todos_dados_estoque = []
+        loading_offset = 0
+        pagina = 0
+
+        while True:
+            payload_grid = {
+                "ajax": "true",
+                "tab": "geral",
+                "gridFiltrado": "true",
+                "limit": "5000",
+                "limite": "5000",
+                "rows": "5000",
+                "length": "5000",
+            }
+            if loading_offset > 0:
+                payload_grid["loading"] = str(pagina)
+
+            print(f"📥 Baixando página de estoque {pagina} (A partir da linha {loading_offset})...")
+            response = self.session.post(url, data=payload_grid)
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            linhas_com_dados = soup.find_all("tr", attrs={"todoscampos": True})
+
+            if not linhas_com_dados:
+                print("🏁 Fim dos dados retornados pelo servidor!")
+                break 
+            
+            print(f"   ✅ Encontrados {len(linhas_com_dados)} itens nesta página.")
+            
+            for linha in linhas_com_dados:
+                json_texto = linha.get("todoscampos")
+                if json_texto:
+                    try:
+                        dados_linha = json.loads(json_texto)
+                        todos_dados_estoque.append(dados_linha)
+                    except json.JSONDecodeError:
+                        continue
+            
+            loading_offset += len(linhas_com_dados)
+            pagina += 1 
+
+        # Transformação em DataFrame e Limpeza Final
+        df = pd.DataFrame(todos_dados_estoque)
+        
+        if df.empty:
+            print("Nenhum dado encontrado no estoque com esse filtro.")
+            return df
+
+        # Limpeza padrão de colunas sistêmicas
+        if "excluirLinha" in df.columns:
+            df = df.drop(columns=["excluirLinha"])
+
+        # Garantia de Qualidade (Double Check): 
+        # Filtra o DataFrame no Pandas para ter certeza que apenas itens com "!" no código ficaram
+        # Identifique o nome exato da coluna (pode ser "Codigo", "codigo", etc. Ajuste se necessário).
+        colunas_codigo = [col for col in df.columns if col.lower() in ['código', 'codigo']]
+        
+        if colunas_codigo:
+            coluna_alvo = colunas_codigo[0]
+            # Mantém apenas as linhas onde a coluna de código contém o '!'
+            df = df[df[coluna_alvo].astype(str).str.contains("!", na=False)]
+            df = df.reset_index(drop=True)
+
+        return df
+
+
 
 if __name__ == "__main__":
     pass

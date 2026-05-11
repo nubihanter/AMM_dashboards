@@ -106,7 +106,18 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
         df_notas_fiscais = _remove_duplicates(df_notas_fiscais,subset=['T007_Id',"Empresa"], ultima_data=ultima_data_notas_fiscais)
     return df_notas_fiscais, df_produtos
 
+def get_estoque():
+    api = HardnessAPI()
+    api.login()
+    print("📊 Extraindo dados de estoque...")
+    api.filtrar_estoque()
+    df_estoque = api.get_dados_estoque()
+    return df_estoque
+
+
 if __name__ == "__main__":
-    df_notas_fiscais, df_produtos = get_raw_data()
-    df_notas_fiscais.to_csv("data/notas_fiscais_combinadas.csv", index=False)
-    df_produtos.to_csv("data/produtos_combinados.csv", index=False)
+    # df_notas_fiscais, df_produtos = get_raw_data()
+    # df_notas_fiscais.to_csv("data/notas_fiscais_combinadas.csv", index=False)
+    # df_produtos.to_csv("data/produtos_combinados.csv", index=False)
+    df_estoque = get_estoque()
+    df_estoque.to_csv("data/estoque_combinado.csv", index=False)

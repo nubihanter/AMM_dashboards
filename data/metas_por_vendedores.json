@@ -1,0 +1,428 @@
+[
+  {
+    "user_id": 97334,
+    "nome": "Patricia",
+    "total_metas": 15,
+    "valor_total": 1912357.24,
+    "metas": [
+      {
+        "goal_id": 145964,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-12-01",
+        "data_fim": "2026-12-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145963,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-11-01",
+        "data_fim": "2026-11-30",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145962,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-10-01",
+        "data_fim": "2026-10-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145961,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-09-01",
+        "data_fim": "2026-09-30",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145960,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-08-01",
+        "data_fim": "2026-08-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145959,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-07-01",
+        "data_fim": "2026-07-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145958,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-06-01",
+        "data_fim": "2026-06-30",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145957,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-05-01",
+        "data_fim": "2026-05-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145956,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-04-01",
+        "data_fim": "2026-04-30",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145955,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-03-01",
+        "data_fim": "2026-03-31",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 145944,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-02-01",
+        "data_fim": "2026-02-28",
+        "valor": 131745.78
+      },
+      {
+        "goal_id": 135062,
+        "goal_title": "Meta Janeiro",
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31",
+        "valor": 123153.66
+      },
+      {
+        "goal_id": 119383,
+        "goal_title": "ULTIMA META DO ANO!!",
+        "data_inicio": "2025-12-01",
+        "data_fim": "2025-12-31",
+        "valor": 80000.0
+      },
+      {
+        "goal_id": 113392,
+        "goal_title": "Meta Mes de Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 130000.0
+      },
+      {
+        "goal_id": 113384,
+        "goal_title": "Meta - Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 130000.0
+      }
+    ]
+  },
+  {
+    "user_id": 97549,
+    "nome": "Mayara",
+    "total_metas": 5,
+    "valor_total": 377497.99,
+    "metas": [
+      {
+        "goal_id": 145943,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-02-01",
+        "data_fim": "2026-02-28",
+        "valor": 76234.92
+      },
+      {
+        "goal_id": 135065,
+        "goal_title": "Meta Janeiro",
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31",
+        "valor": 71263.07
+      },
+      {
+        "goal_id": 119386,
+        "goal_title": "ULTIMA META DO ANO!!",
+        "data_inicio": "2025-12-01",
+        "data_fim": "2025-12-31",
+        "valor": 60000.0
+      },
+      {
+        "goal_id": 113402,
+        "goal_title": "Meta Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 85000.0
+      },
+      {
+        "goal_id": 113384,
+        "goal_title": "Meta - Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 85000.0
+      }
+    ]
+  },
+  {
+    "user_id": 97878,
+    "nome": "Franciele",
+    "total_metas": 3,
+    "valor_total": 255000.0,
+    "metas": [
+      {
+        "goal_id": 119382,
+        "goal_title": "ULTIMA META DO ANO!!",
+        "data_inicio": "2025-12-01",
+        "data_fim": "2025-12-31",
+        "valor": 65000.0
+      },
+      {
+        "goal_id": 113400,
+        "goal_title": "Meta Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 95000.0
+      },
+      {
+        "goal_id": 113384,
+        "goal_title": "Meta - Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 95000.0
+      }
+    ]
+  },
+  {
+    "user_id": 97901,
+    "nome": "Inanjara Porto",
+    "total_metas": 15,
+    "valor_total": 1212014.49,
+    "metas": [
+      {
+        "goal_id": 145941,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-12-01",
+        "data_fim": "2026-12-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145940,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-11-01",
+        "data_fim": "2026-11-30",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145939,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-10-01",
+        "data_fim": "2026-10-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145938,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-09-01",
+        "data_fim": "2026-09-30",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145937,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-08-01",
+        "data_fim": "2026-08-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145936,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-07-01",
+        "data_fim": "2026-07-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145935,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-06-01",
+        "data_fim": "2026-06-30",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145934,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-05-01",
+        "data_fim": "2026-05-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145933,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-04-01",
+        "data_fim": "2026-04-30",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145932,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-03-01",
+        "data_fim": "2026-03-31",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 145931,
+        "goal_title": "Inanjara Fevereiro",
+        "data_inicio": "2026-02-01",
+        "data_fim": "2026-02-28",
+        "valor": 79935.64
+      },
+      {
+        "goal_id": 135064,
+        "goal_title": "Meta Janeiro",
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31",
+        "valor": 74722.45
+      },
+      {
+        "goal_id": 119384,
+        "goal_title": "ULTIMA META DO ANO!!",
+        "data_inicio": "2025-12-01",
+        "data_fim": "2025-12-31",
+        "valor": 78000.0
+      },
+      {
+        "goal_id": 113398,
+        "goal_title": "Meta Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 90000.0
+      },
+      {
+        "goal_id": 113384,
+        "goal_title": "Meta - Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 90000.0
+      }
+    ]
+  },
+  {
+    "user_id": 97995,
+    "nome": "Brigitte",
+    "total_metas": 4,
+    "valor_total": 203105.39,
+    "metas": [
+      {
+        "goal_id": 145942,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-02-01",
+        "data_fim": "2026-02-28",
+        "valor": 53290.43
+      },
+      {
+        "goal_id": 135066,
+        "goal_title": "Meta Janeiro",
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31",
+        "valor": 49814.96
+      },
+      {
+        "goal_id": 119385,
+        "goal_title": "ULTIMA META DO ANO!!",
+        "data_inicio": "2025-12-01",
+        "data_fim": "2025-12-31",
+        "valor": 40000.0
+      },
+      {
+        "goal_id": 113944,
+        "goal_title": "Meta - Novembro",
+        "data_inicio": "2025-11-01",
+        "data_fim": "2025-11-30",
+        "valor": 60000.0
+      }
+    ]
+  },
+  {
+    "user_id": 98148,
+    "nome": "Robson",
+    "total_metas": 12,
+    "valor_total": 322000.0,
+    "metas": [
+      {
+        "goal_id": 145975,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-12-01",
+        "data_fim": "2026-12-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145974,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-11-01",
+        "data_fim": "2026-11-30",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145973,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-10-01",
+        "data_fim": "2026-10-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145972,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-09-01",
+        "data_fim": "2026-09-30",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145971,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-08-01",
+        "data_fim": "2026-08-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145970,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-07-01",
+        "data_fim": "2026-07-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145969,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-06-01",
+        "data_fim": "2026-06-30",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145968,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-05-01",
+        "data_fim": "2026-05-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145967,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-04-01",
+        "data_fim": "2026-04-30",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145966,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-03-01",
+        "data_fim": "2026-03-31",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 145965,
+        "goal_title": "Meta Fevereiro",
+        "data_inicio": "2026-02-01",
+        "data_fim": "2026-02-28",
+        "valor": 27000.0
+      },
+      {
+        "goal_id": 135067,
+        "goal_title": "Meta Janeiro",
+        "data_inicio": "2026-01-01",
+        "data_fim": "2026-01-31",
+        "valor": 25000.0
+      }
+    ]
+  }
+]
