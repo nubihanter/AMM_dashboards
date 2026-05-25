@@ -8,8 +8,14 @@ from datetime import datetime, timedelta
 from scipy import stats
 import os
 import warnings
+from getDataChatech import atualiza_dados_estoque
 
 warnings.filterwarnings('ignore')
+
+# Função com cache para executar atualização apenas uma vez por sessão
+@st.cache_resource(ttl=3600)
+def executar_atualizacao_estoque():
+    atualiza_dados_estoque()
 
 # ========================= CONFIGURAÇÃO STREAMLIT =========================
 st.set_page_config(
@@ -122,6 +128,7 @@ def classificar_status_estoque(estoque, projecao):
 
 
 # ========================= CARREGAMENTO DE DADOS =========================
+executar_atualizacao_estoque()
 df_stock_data = load_stock_data()
 
 if df_stock_data.empty:
@@ -141,16 +148,16 @@ max_date = df_stock_data['T007_Data_Emissao'].max()
 
 date_range = st.sidebar.date_input(
     "Selecione o período:",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date
+    value=(min_date.date(), max_date.date()),
+    min_value=min_date.date(),
+    max_value=max_date.date()
 )
 
 # Validação do date_range
 if len(date_range) == 1:
     date_range = (date_range[0], date_range[0])
 elif len(date_range) == 0:
-    date_range = (min_date, max_date)
+    date_range = (min_date.date(), max_date.date())
 elif len(date_range) > 2:
     date_range = (date_range[0], date_range[1])
 

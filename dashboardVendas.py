@@ -7,6 +7,23 @@ import numpy as np
 from datetime import datetime
 import os
 
+
+# Função com cache para executar atualização a cada 1 hora
+@st.cache_resource(ttl=3600)
+def executar_atualizacao_dados(): 
+    from getDataChatech import atualiza_dados_produtos_e_notas_fiscais
+    atualiza_dados_produtos_e_notas_fiscais()
+
+    from data_preparation import load_and_clean_data
+    df = load_and_clean_data(
+    )
+    
+    # Converte colunas de data
+    df['T007_Data_Emissao'] = pd.to_datetime(df['T007_Data_Emissao'])
+    df['Data_Envio_XML'] = pd.to_datetime(df['Data_Envio_XML'])
+    df['vendedor.C007_Primeiro_Nome'] = df['vendedor.C007_Primeiro_Nome'].replace("ANDRE","ECOMMERCE").replace("ANDRÉ","ECOMMERCE")
+    return df
+
 FATURAMENTO_MINIMO_INATIVIDADE = 500
 # Configuração da página
 st.set_page_config(
@@ -34,28 +51,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data
-def load_data():
-    """Carrega o arquivo CSV combinado e limpo"""
-    file_path = "data/notas_fiscais_combinadas_CLEAN.csv"
-    
-    # Verifica se arquivo limpo existe, caso contrário, prepara os dados
-    if not os.path.exists(file_path):
-        from data_preparation import load_and_clean_data
-        df = load_and_clean_data(
-        )
-        df.to_csv(file_path, index=False)
-    else:
-        df = pd.read_csv(file_path)
-    
-    # Converte colunas de data
-    df['T007_Data_Emissao'] = pd.to_datetime(df['T007_Data_Emissao'])
-    df['Data_Envio_XML'] = pd.to_datetime(df['Data_Envio_XML'])
-    
-    return df
-
 # Carrega dados
-df = load_data()
+df = executar_atualizacao_dados()
 
 # Header
 st.markdown('<div class="main-header">📊 Dashboard de Vendas - AMM (EPIS + Soluções)</div>', unsafe_allow_html=True)
@@ -80,16 +77,16 @@ max_date = df['T007_Data_Emissao'].max()
 
 date_range = st.sidebar.date_input(
     "Selecione o período:",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date
+    value=(min_date.date(), max_date.date()),
+    min_value=min_date.date(),
+    max_value=max_date.date()
 )
 
 # Validação do date_range - garante que sempre teremos 2 datas
 if len(date_range) == 1:
     date_range = (date_range[0], date_range[0])
 elif len(date_range) == 0:
-    date_range = (min_date, max_date)
+    date_range = (min_date.date(), max_date.date())
 elif len(date_range) > 2:
     date_range = (date_range[0], date_range[1])
 

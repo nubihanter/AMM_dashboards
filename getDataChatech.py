@@ -1,5 +1,6 @@
 from integrations.chatechLib import HardnessAPI
 import pandas as pd
+from datetime import datetime
 
 def _remove_duplicates(df,subset, ultima_data):
     # 1. Garantir que a coluna está em formato datetime
@@ -14,17 +15,17 @@ def _remove_duplicates(df,subset, ultima_data):
 
     # 3. Aplicar a remoção de duplicatas APENAS no bloco de dados novos
     # Aqui ele remove duplicatas dentro dos novos e também o que for repetido em relação ao ID/Empresa
-    df_novos.drop_duplicates(inplace=True,subset=subset,keep='first')
+    df_novos.drop_duplicates(inplace=True,subset=subset,keep='last')
 
     # 4. Concatenar os dois blocos de volta
     df_final = pd.concat([df_historico, df_novos], ignore_index=True)
 # =================================================================
     # 5. O PASSO QUE FALTAVA: A Varredura Final
     # Garante que nada que entrou no df_novos já existia no df_historico.
-    # Como o histórico entrou primeiro no concat, o keep='first' mantém
-    # a versão mais antiga e apaga a nova intrusa.
+    # Como o histórico entrou primeiro no concat, o keep='last' mantém
+    # a versão mais recente (nova) e apaga a antiga.
     # =================================================================
-    df_final.drop_duplicates(subset=subset, inplace=True, keep='first')
+    df_final.drop_duplicates(subset=subset, inplace=True, keep='last')
 
     # 5. Ordenação final
     df_final.sort_values('T007_Data_Emissao', inplace=True)
@@ -44,6 +45,7 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
         except FileNotFoundError:
             print("⚠️ Arquivos existentes não encontrados. Criando novos DataFrames.")
             df_produtos = pd.DataFrame()
+            ultima_data_produtos = ''
         try:
             df_notas_fiscais = pd.read_csv("data/notas_fiscais_combinadas.csv")
             df_notas_fiscais['T007_Data_Emissao'] = pd.to_datetime(df_notas_fiscais['T007_Data_Emissao'], errors='coerce')
@@ -51,6 +53,7 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             print(f"✓ Arquivos existentes carregados: {len(df_produtos)} produtos e {len(df_notas_fiscais)} notas fiscais. Última data de atualização: {ultima_data_notas_fiscais}")
         except FileNotFoundError:
             df_notas_fiscais = pd.DataFrame()
+            ultima_data_notas_fiscais = ''
     else:
         ultima_data_produtos = ''
         ultima_data_notas_fiscais = ''
@@ -63,8 +66,12 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             df_notas_fiscais = pd.DataFrame()
         else:
             df_notas_fiscais = None
-
+    print("Buscando dados para as seguintes empresas:", ", ".join(empresas_list))
+    print(f"Data de corte para produtos: {ultima_data_produtos if ultima_data_produtos else 'Nenhuma, extraindo tudo'}")
+    print(f"Data de corte para notas fiscais: {ultima_data_notas_fiscais if ultima_data_notas_fiscais else 'Nenhuma, extraindo tudo'}")
+    data_fim = datetime.now().strftime("%Y-%m-%d")
     for empresa in empresas_list:
+
         empresa_id = api.empresas_dict.get(empresa, {}).get("id_sistema")
         if empresa_id:
             api.trocar_empresa(empresa_id)
@@ -72,10 +79,10 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             print(f"⚠️ Empresa '{empresa}' não encontrada no dicionário. Verifique o nome e tente novamente.")
             continue
         print(f"✅ Empresa '{empresa}' selecionada para extração de dados.")
-
         if produtos:
             print(f"📊 Extraindo dados de produtos para '{empresa}'...")
-            api.filtrar(url=api.produtos_url,data_inicio=ultima_data_produtos.strftime("%Y-%m-%d") if append else "")
+            data_inicio_produtos = ultima_data_produtos.strftime("%Y-%m-%d") if append and isinstance(ultima_data_produtos, pd.Timestamp) else ""
+            api.filtrar(url=api.produtos_url,data_inicio=data_inicio_produtos, data_fim=data_fim)
             produtos_data = api.get_dados(api.produtos_url)
             df_produtos_empresa = pd.DataFrame(produtos_data)
             df_produtos_empresa["Empresa"] = empresa
@@ -86,7 +93,8 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             print(f"✓ Produtos extraídos para '{empresa}': {len(df_produtos_empresa)} registros.")
         if notas_fiscais:
             print(f"📊 Extraindo dados de notas fiscais para '{empresa}'...")
-            api.filtrar(url=api.notafiscal_url,data_inicio=ultima_data_notas_fiscais.strftime("%Y-%m-%d") if append else "")
+            data_inicio_notas = ultima_data_notas_fiscais.strftime("%Y-%m-%d") if append and isinstance(ultima_data_notas_fiscais, pd.Timestamp) else ""
+            api.filtrar(url=api.notafiscal_url,data_inicio=data_inicio_notas, data_fim=data_fim)
             notas_fiscais_data = api.get_dados(api.notafiscal_url)
             df_notas_fiscais_empresa = pd.DataFrame(notas_fiscais_data)
             df_notas_fiscais_empresa["Empresa"] = empresa
@@ -114,10 +122,15 @@ def get_estoque():
     df_estoque = api.get_dados_estoque()
     return df_estoque
 
+def atualiza_dados_produtos_e_notas_fiscais():
+    df_notas_fiscais, df_produtos = get_raw_data()
+    df_notas_fiscais.to_csv("data/notas_fiscais_combinadas.csv", index=False)
+    df_produtos.to_csv("data/produtos_combinados.csv", index=False)
 
-if __name__ == "__main__":
-    # df_notas_fiscais, df_produtos = get_raw_data()
-    # df_notas_fiscais.to_csv("data/notas_fiscais_combinadas.csv", index=False)
-    # df_produtos.to_csv("data/produtos_combinados.csv", index=False)
+def atualiza_dados_estoque():
     df_estoque = get_estoque()
     df_estoque.to_csv("data/estoque_combinado.csv", index=False)
+
+if __name__ == "__main__":
+    atualiza_dados_produtos_e_notas_fiscais()
+    atualiza_dados_estoque()
