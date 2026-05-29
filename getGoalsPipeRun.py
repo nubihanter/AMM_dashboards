@@ -2,7 +2,7 @@ import json
 from integrations.pipeRunLib import PipeRunAPI
 
 
-if __name__ == "__main__":
+def export_goals_by_seller():
     api = PipeRunAPI()
     
     print("\n" + "="*70)

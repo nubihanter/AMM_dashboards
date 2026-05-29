@@ -276,7 +276,7 @@ pct_critico = (produtos_deficit + produtos_critico) / total_produtos * 100 if to
 st.sidebar.metric("% Crítico", f"{pct_critico:.1f}%")
 
 # ========================= TABS PRINCIPAIS =========================
-tab1, tab2, tab3 = st.tabs(["📊 Análise Crítica", "👟 Análise de Grades", "📋 Detalhes"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Análise Crítica", "👟 Análise de Grades", "📋 Detalhes", "🚨 Alertas & Sugestões"])
 
 # ========================= TAB 1: ANÁLISE DE ESTOQUE CRÍTICO =========================
 with tab1:
@@ -711,6 +711,156 @@ with tab3:
             file_name=f"vendas_filtradas_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv"
         )
+
+# ========================= TAB 4: ALERTAS & SUGESTÕES =========================
+with tab4:
+    st.subheader("🚨 Alertas de Estoque & Sugestões de Compra")
+    
+    # Carrega dados de estoque com análise
+    try:
+        df_estoque_analise = pd.read_csv("data/estoque_analise.csv", low_memory=False)
+        
+        # Filtra apenas alertas críticos e mínimos
+        df_alertas = df_estoque_analise[
+            (df_estoque_analise['Status_Estoque'].isin(['CRÍTICO', 'MÍNIMO'])) &
+            (df_estoque_analise['D009_Quantidade_Estoque'] > 0)
+        ].copy()
+        
+        if len(df_alertas) > 0:
+            # Ordena por urgência (crítico primeiro, depois por sugestão de compra)
+            df_alertas = df_alertas.sort_values(['Status_Estoque', 'Sugestao_Compra'], ascending=[True, False])
+            
+            # Métricas
+            col1, col2, col3, col4 = st.columns(4)
+            
+            criticos = len(df_alertas[df_alertas['Status_Estoque'] == 'CRÍTICO'])
+            minimos = len(df_alertas[df_alertas['Status_Estoque'] == 'MÍNIMO'])
+            total_sugestao = df_alertas['Valor_Sugestao_Compra'].sum()
+            total_quantidade = df_alertas['Sugestao_Compra'].sum()
+            
+            with col1:
+                st.metric("🔴 Estoque Crítico", criticos)
+            with col2:
+                st.metric("🟡 Estoque Mínimo", minimos)
+            with col3:
+                st.metric("📊 Qtd Sugestão", f"{int(total_quantidade)}")
+            with col4:
+                st.metric("💰 Valor Sugestão", f"R$ {total_sugestao:,.0f}")
+            
+            # Tabs de visualização
+            alert_tab1, alert_tab2, alert_tab3 = st.tabs(["🔴 Alertas Críticos", "🟡 Alertas Mínimo", "📋 Sugestão de Compra"])
+            
+            with alert_tab1:
+                st.markdown("### 🔴 Produtos em Estoque CRÍTICO")
+                df_criticos = df_alertas[df_alertas['Status_Estoque'] == 'CRÍTICO'].copy()
+                
+                if len(df_criticos) > 0:
+                    # Exibe com cor vermelha
+                    df_criticos_display = df_criticos[[
+                        'D002_Descricao_Produto', 'D001_Codigo_Barras', 'D009_Quantidade_Estoque',
+                        'Estoque_Critico', 'D009_Valor_Custo_Unitario', 'Sugestao_Compra', 'Valor_Sugestao_Compra'
+                    ]].copy()
+                    
+                    df_criticos_display.columns = [
+                        'Produto', 'Código', 'Qtd Atual', 'Limite Crítico', 'Custo Unit.', 'Qtd Sugestão', 'Valor Sugestão'
+                    ]
+                    
+                    df_criticos_display['Qtd Atual'] = df_criticos_display['Qtd Atual'].astype(int)
+                    df_criticos_display['Limite Crítico'] = df_criticos_display['Limite Crítico'].astype(int)
+                    df_criticos_display['Custo Unit.'] = df_criticos_display['Custo Unit.'].apply(lambda x: f"R$ {x:,.2f}")
+                    df_criticos_display['Qtd Sugestão'] = df_criticos_display['Qtd Sugestão'].astype(int)
+                    df_criticos_display['Valor Sugestão'] = df_criticos_display['Valor Sugestão'].apply(lambda x: f"R$ {x:,.2f}")
+                    
+                    st.dataframe(df_criticos_display, width='stretch', hide_index=True)
+                    
+                    st.warning(f"⚠️ {len(df_criticos)} produtos em estoque crítico! Ação imediata recomendada.")
+                else:
+                    st.success("✅ Nenhum produto em estoque crítico")
+            
+            with alert_tab2:
+                st.markdown("### 🟡 Produtos em Estoque MÍNIMO")
+                df_minimos = df_alertas[df_alertas['Status_Estoque'] == 'MÍNIMO'].copy()
+                
+                if len(df_minimos) > 0:
+                    df_minimos_display = df_minimos[[
+                        'D002_Descricao_Produto', 'D001_Codigo_Barras', 'D009_Quantidade_Estoque',
+                        'Estoque_Minimo', 'D009_Valor_Custo_Unitario', 'Sugestao_Compra', 'Valor_Sugestao_Compra'
+                    ]].copy()
+                    
+                    df_minimos_display.columns = [
+                        'Produto', 'Código', 'Qtd Atual', 'Limite Mínimo', 'Custo Unit.', 'Qtd Sugestão', 'Valor Sugestão'
+                    ]
+                    
+                    df_minimos_display['Qtd Atual'] = df_minimos_display['Qtd Atual'].astype(int)
+                    df_minimos_display['Limite Mínimo'] = df_minimos_display['Limite Mínimo'].astype(int)
+                    df_minimos_display['Custo Unit.'] = df_minimos_display['Custo Unit.'].apply(lambda x: f"R$ {x:,.2f}")
+                    df_minimos_display['Qtd Sugestão'] = df_minimos_display['Qtd Sugestão'].astype(int)
+                    df_minimos_display['Valor Sugestão'] = df_minimos_display['Valor Sugestão'].apply(lambda x: f"R$ {x:,.2f}")
+                    
+                    st.dataframe(df_minimos_display, width='stretch', hide_index=True)
+                    
+                    st.info(f"ℹ️ {len(df_minimos)} produtos abaixo do estoque mínimo. Recomenda-se compra nos próximos dias.")
+                else:
+                    st.success("✅ Nenhum produto abaixo do estoque mínimo")
+            
+            with alert_tab3:
+                st.markdown("### 📋 Sugestão Consolidada de Compra")
+                
+                df_sugestao = df_alertas[[
+                    'D002_Descricao_Produto', 'D001_Codigo_Barras', 'D009_Quantidade_Estoque',
+                    'Estoque_Minimo', 'D009_Valor_Custo_Unitario', 'Sugestao_Compra', 'Valor_Sugestao_Compra'
+                ]].copy()
+                
+                df_sugestao.columns = [
+                    'Produto', 'Código', 'Qtd Atual', 'Estoque Mín.', 'Custo Unit.', 'Qtd Compra', 'Valor Total'
+                ]
+                
+                df_sugestao['Qtd Atual'] = df_sugestao['Qtd Atual'].astype(int)
+                df_sugestao['Estoque Mín.'] = df_sugestao['Estoque Mín.'].astype(int)
+                df_sugestao['Custo Unit.'] = df_sugestao['Custo Unit.'].apply(lambda x: f"R$ {x:,.2f}")
+                df_sugestao['Qtd Compra'] = df_sugestao['Qtd Compra'].astype(int)
+                df_sugestao['Valor Total'] = df_sugestao['Valor Total'].apply(lambda x: f"R$ {x:,.2f}")
+                
+                # Ordena por valor descendente
+                df_sugestao_sorted = df_sugestao.sort_values('Valor Total', ascending=False)
+                
+                st.dataframe(df_sugestao_sorted, width='stretch', hide_index=True)
+                
+                # Resumo financeiro
+                st.markdown("---")
+                st.markdown("### 💰 Resumo Financeiro da Compra")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Total de Itens a Comprar", int(total_quantidade))
+                
+                with col2:
+                    st.metric("Investimento Total", f"R$ {total_sugestao:,.2f}")
+                
+                # Gráfico de distribuição de custo
+                st.markdown("---")
+                df_chart = df_alertas.nlargest(15, 'Valor_Sugestao_Compra')[[
+                    'D002_Descricao_Produto', 'Valor_Sugestao_Compra', 'Status_Estoque'
+                ]].copy()
+                df_chart.columns = ['Produto', 'Valor', 'Status']
+                
+                fig_chart = px.bar(
+                    df_chart,
+                    x='Valor',
+                    y='Produto',
+                    orientation='h',
+                    title="Top 15 Produtos por Valor de Compra Sugerida",
+                    labels={'Valor': 'Valor da Sugestão (R$)'},
+                    color='Status',
+                    color_discrete_map={'CRÍTICO': '#e74c3c', 'MÍNIMO': '#f39c12'}
+                )
+                st.plotly_chart(fig_chart, width='stretch')
+        else:
+            st.success("✅ Nenhum alerta de estoque! Todos os produtos estão em nível OK.")
+    
+    except FileNotFoundError:
+        st.warning("⚠️ Arquivo 'estoque_analise.csv' não encontrado. Execute 'data_preparation.py' para gerar os dados.")
 
 # ========================= RODAPÉ =========================
 st.markdown("---")
