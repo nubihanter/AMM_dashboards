@@ -32,22 +32,16 @@ def load_and_clean_data(notas_fiscais_file=r"data\notas_fiscais_combinadas.csv",
     df_notas['T007_Data_Emissao'] = pd.to_datetime(df_notas['T007_Data_Emissao'], errors='coerce')
     df_notas['Data_Envio_XML']    = pd.to_datetime(df_notas['Data_Envio_XML'], errors='coerce')
     
-    # 5. Preenche vendedores faltando com o último vendedor que vendeu para essa empresa
-    # Ordena por empresa e data para encontrar o último vendedor
+    # 5. Preenche vendedores faltando com o último vendedor "to date" (em ordem cronológica)
+    # Ordena por empresa e data para fazer forward fill correto
     df_notas = df_notas.sort_values(['D024_Id', 'T007_Data_Emissao'])
     
-    # Para cada empresa (D024_Id), preenche vendedores vazios com o último vendedor válido
+    # Para cada empresa (D024_Id), preenche vendedores vazios com o vendedor do registro anterior
+    # Isso garante que vendedores novos não apareçam com histórico de clientes antigos
     for company_id in df_notas['D024_Id'].unique():
         mask = df_notas['D024_Id'] == company_id
-        company_df = df_notas[mask].copy()
-        
-        # Encontra o último vendedor válido para essa empresa
-        valid_sellers = company_df[company_df['vendedor.C007_Primeiro_Nome'].notna()]['vendedor.C007_Primeiro_Nome']
-        
-        if len(valid_sellers) > 0:
-            last_seller = valid_sellers.iloc[-1]
-            # Preenche os nulos com o último vendedor
-            df_notas.loc[mask, 'vendedor.C007_Primeiro_Nome'] = df_notas.loc[mask, 'vendedor.C007_Primeiro_Nome'].fillna(last_seller)
+        # Forward fill: preenche cada vazio com o vendedor do registro anterior (cronologicamente)
+        df_notas.loc[mask, 'vendedor.C007_Primeiro_Nome'] = df_notas.loc[mask, 'vendedor.C007_Primeiro_Nome'].fillna(method='ffill')
     
     # 6. Usa nome fantasia quando disponível, senão usa nome da empresa
     df_notas['Empresa'] = df_notas['D024_Nome_Fantasia'].fillna(df_notas['D024_Nome_Empresa'])
@@ -69,23 +63,6 @@ def load_and_clean_data(notas_fiscais_file=r"data\notas_fiscais_combinadas.csv",
     print(f"Registros finais após limpeza: {len(df_notas)}")
     
     return df_notas
-
-
-def get_monthly_sales(df):
-    """Agrupa vendas por mês"""
-    return df.groupby(['Ano_Mes', 'vendedor.C007_Primeiro_Nome'])['Valor_Venda'].sum().reset_index()
-
-
-def get_quarterly_sales(df):
-    """Agrupa vendas por trimestre"""
-    df_temp = df.copy()
-    df_temp['Trimestre_str'] = df_temp['Trimestre'].astype(str)
-    return df_temp.groupby(['Trimestre_str', 'vendedor.C007_Primeiro_Nome'])['Valor_Venda'].sum().reset_index()
-
-
-def get_annual_sales(df):
-    """Agrupa vendas por ano"""
-    return df.groupby(['Ano', 'vendedor.C007_Primeiro_Nome'])['Valor_Venda'].sum().reset_index()
 
 
 if __name__ == "__main__":
