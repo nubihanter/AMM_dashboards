@@ -1,6 +1,17 @@
 @echo off
 title Rodar Dashboards Streamlit
 
+cd /d "%~dp0"
+
+echo Limpando arquivos modificados localmente...
+git reset --hard
+git clean -fd
+
+echo.
+echo Atualizando o codigo fonte...
+git pull
+echo.
+
 echo Iniciando servidores...
 echo.
 
