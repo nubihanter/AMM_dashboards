@@ -1,12 +1,23 @@
 import requests
-from dotenv import load_dotenv
 import os
 import re
 from bs4 import BeautifulSoup
 import pandas as pd
 # from streamlit import form
 import json
-load_dotenv(".env")
+import sys
+from pathlib import Path
+
+# Adiciona o diretório pai ao sys.path para importar config
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import (
+    HARDNESS_LOGIN,
+    HARDNESS_SENHA,
+    HARDNESS_BASE_URL,
+    HARDNESS_NOTAFISCAL_GRID_ID,
+    HARDNESS_PRODUTOS_GRID_ID,
+    HARDNESS_ESTOQUE_GRID_ID
+)
 
 class HardnessAPI:
     def __init__(self,verbose=True):
@@ -20,7 +31,7 @@ class HardnessAPI:
                                }
                             }
         self.session = requests.Session()
-        self.base_url = os.getenv("HARDNESS_BASE_URL", "http://amm.chatechs.com.br")
+        self.base_url = HARDNESS_BASE_URL
         self.session.headers.update({
                                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                                         "X-Requested-With": "XMLHttpRequest",
@@ -32,17 +43,17 @@ class HardnessAPI:
         self.estoque_url = self.base_url + "/cad/cad002/grid/lista/"
         self.verbose = verbose
         self.grid_dicts = {
-            self.notafiscal_url: os.getenv("HARDNESS_NOTAFISCAL_GRID_ID", "9a4a52124b9ef45ed11c682313457e66"),
-            self.produtos_url: os.getenv("HARDNESS_PRODUTOS_GRID_ID", "417dd51bce34fe83280ebd6b01992a4f"),
-            self.estoque_url: os.getenv("HARDNESS_ESTOQUE_GRID_ID", "113ae9ef32e0698528880c4e2d154f2b")
+            self.notafiscal_url: HARDNESS_NOTAFISCAL_GRID_ID,
+            self.produtos_url: HARDNESS_PRODUTOS_GRID_ID,
+            self.estoque_url: HARDNESS_ESTOQUE_GRID_ID
         }
 
 
     def login(self):
         print("Fazendo login no sistema...")
         payload_login = {
-            "login": os.getenv("LOGIN"),
-            "senha": os.getenv("SENHA"),
+            "login": HARDNESS_LOGIN,
+            "senha": HARDNESS_SENHA,
         }
         self.session.post(self.url_login, data=payload_login)
         if self.verbose:

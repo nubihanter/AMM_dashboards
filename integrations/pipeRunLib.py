@@ -1,14 +1,23 @@
 import requests
-import os 
-from dotenv import load_dotenv
+import os
+import sys
+from pathlib import Path
 
-load_dotenv(".env")
+# Adiciona o diretório pai ao sys.path para importar config
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import (
+    PIPERUN_API_BASE_URL,
+    PIPERUN_TOKEN,
+    PIPERUN_EMAIL,
+    PIPERUN_SENHA
+)
+
 
 class PipeRunAPI:
     def __init__(self):
-        self.base_url = os.getenv("PIPERUN_API_BASE_URL", "https://api.pipe.run/v1")
+        self.base_url = PIPERUN_API_BASE_URL
         self.headers = {
-            "token": os.getenv("TOKEN_PIPERUN"),
+            "token": PIPERUN_TOKEN,
             "Accept": "application/json",
             "Content-Type": "application/json"
         }

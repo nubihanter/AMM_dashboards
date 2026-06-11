@@ -16,11 +16,12 @@ VENDEDORES_OCULTOS = [
     "THIAGO",
     "VERONICA",
     "LENIRA",
-    "RODRIGO"
+    "RODRIGO",
+    "ROBSON"
     ]
 
 # Função com cache para executar atualização a cada 1 hora
-@st.cache_resource(ttl=3600)
+@st.cache_resource(ttl=3600/2)
 def executar_atualizacao_dados(): 
     from getDataHardness import atualiza_dados_produtos_e_notas_fiscais
     atualiza_dados_produtos_e_notas_fiscais()
@@ -35,7 +36,7 @@ def executar_atualizacao_dados():
     return df
 
 
-@st.cache_resource(ttl=3600)
+@st.cache_resource(ttl=24*3600)
 def carregar_metas():
     from getGoalsPipeRun import export_goals_by_seller
     export_goals_by_seller()  # Garante que o JSON seja atualizado antes de carregar
@@ -46,6 +47,18 @@ def carregar_metas():
         return metas
     except:
         return []
+
+
+def normalizar_nome(nome):
+    """Normaliza nomes para comparação, removendo acentos e espaços extras"""
+    import unicodedata
+    if nome is None:
+        return ""
+    # Remove acentos
+    nome_nfd = unicodedata.normalize('NFD', nome.upper())
+    nome_sem_acentos = ''.join(char for char in nome_nfd if unicodedata.category(char) != 'Mn')
+    # Remove espaços extras
+    return ' '.join(nome_sem_acentos.split())
 
 
 FATURAMENTO_MINIMO_INATIVIDADE = 500
@@ -155,6 +168,12 @@ df_vendedor_filtered = df_vendedor[
     (df_vendedor['T007_Data_Emissao'].dt.date <= data_fim.date())
 ].copy()
 
+# Filtra todos os dados para ranking (todas as vendedoras no período)
+df_filtered = df[
+    (df['T007_Data_Emissao'].dt.date >= data_inicio.date()) &
+    (df['T007_Data_Emissao'].dt.date <= data_fim.date())
+].copy()
+
 # Métricas principais para sidebar
 st.sidebar.markdown("---")
 st.sidebar.subheader("📈 Vendas do Mês")
@@ -177,8 +196,8 @@ with col4:
     st.metric("Nº Clientes", num_clientes)
 
 # Tabs principais
-tab1, tab2, tab3 = st.tabs(
-    ["🎯 Metas", "📊 Vendas", "⏱️ Clientes Inativos"]
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["🎯 Metas", "📊 Vendas", "⏱️ Clientes Inativos", "🏆 Ranking"]
 )
 
 # =============== TAB 1: METAS ===============
@@ -187,13 +206,68 @@ with tab1:
     
     # Procura a meta do vendedor
     meta_vendedor = None
+    nome_normalizado = normalizar_nome(vendedora_selecionada)
     for vendedor_meta in metas_data:
-        if vendedor_meta['nome'].upper() == vendedora_selecionada.upper():
+        if normalizar_nome(vendedor_meta['nome']) == nome_normalizado:
             meta_vendedor = vendedor_meta
             break
     
     if meta_vendedor is None:
-        st.warning(f"⚠️ Nenhuma meta encontrada para {vendedora_selecionada}")
+        # Mostra vendas sem comparação de meta
+        st.info(f"ℹ️ Nenhuma meta cadastrada para {vendedora_selecionada}. Exibindo vendas do período.")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric("💰 Vendas Total", f"R$ {total_vendas:,.0f}")
+        
+        with col2:
+            st.metric("📊 Nº de Vendas", num_vendas)
+        
+        with col3:
+            st.metric("📈 Ticket Médio", f"R$ {ticket_medio:,.0f}")
+        
+        with col4:
+            st.metric("🏢 Nº de Clientes", num_clientes)
+        
+        # Gráfico de vendas diárias mesmo sem meta
+        st.subheader("Evolução de Vendas")
+        
+        df_vendedor_filtered['Data'] = df_vendedor_filtered['T007_Data_Emissao'].dt.date
+        df_diario = df_vendedor_filtered.groupby('Data').agg({
+            'Valor_Venda': ['sum', 'count']
+        }).reset_index()
+        df_diario.columns = ['Data', 'Valor', 'Quantidade']
+        df_diario = df_diario.sort_values('Data')
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if len(df_diario) > 0:
+                fig_linha = px.line(
+                    df_diario,
+                    x='Data',
+                    y='Valor',
+                    markers=True,
+                    title="Evolução de Vendas (Diário)",
+                    labels={'Valor': 'Valor (R$)', 'Data': 'Dia'},
+                    color_discrete_sequence=['#1f77b4']
+                )
+                fig_linha.update_traces(line=dict(width=3), marker=dict(size=8))
+                st.plotly_chart(fig_linha, width='stretch', key="fig_linha_sem_meta")
+        
+        with col2:
+            if len(df_diario) > 0:
+                fig_barras = px.bar(
+                    df_diario,
+                    x='Data',
+                    y='Quantidade',
+                    title="Quantidade de Vendas (Diário)",
+                    labels={'Quantidade': 'Nº de Vendas', 'Data': 'Dia'},
+                    color='Quantidade',
+                    color_continuous_scale='Blues'
+                )
+                st.plotly_chart(fig_barras, width='stretch', key="fig_barras_sem_meta")
     else:
         # Calcula meta total no período selecionado
         meta_periodo = 0
@@ -267,7 +341,7 @@ with tab1:
                 }
             ))
             fig_gauge.update_layout(height=400)
-            st.plotly_chart(fig_gauge, width='stretch')
+            st.plotly_chart(fig_gauge, width='stretch', key="fig_gauge_meta")
         
         with col2:
             # Histórico das últimas 3 metas vs Realizado
@@ -326,7 +400,7 @@ with tab1:
                 color_discrete_map={'Meta': '#1f77b4', 'Realizado': '#ff7f0e'},
                 text_auto=True
             )
-            st.plotly_chart(fig_compare, width='stretch')
+            st.plotly_chart(fig_compare, width='stretch', key="fig_compare_meta")
         
         # Tabela de metas mensais
         st.subheader("Detalhamento de Metas")
@@ -372,7 +446,7 @@ with tab2:
                 color_discrete_sequence=['#1f77b4']
             )
             fig_linha.update_traces(line=dict(width=3), marker=dict(size=8))
-            st.plotly_chart(fig_linha, width='stretch')
+            st.plotly_chart(fig_linha, width='stretch', key=f"fig_linha_tab2_{vendedora_selecionada}")
         
         with col2:
             # Quantidade de vendas
@@ -385,7 +459,7 @@ with tab2:
                 color='Quantidade',
                 color_continuous_scale='Blues'
             )
-            st.plotly_chart(fig_barras, width='stretch')
+            st.plotly_chart(fig_barras, width='stretch', key=f"fig_barras_tab2_{vendedora_selecionada}")
         
         # Tabela diária com empresa
         st.subheader("Detalhe Diário de Vendas")
@@ -466,7 +540,7 @@ with tab3:
                 labels={'Dias_Inatividade': 'Dias de Inatividade', 'count': 'Quantidade de Clientes'},
                 color_discrete_sequence=['#ff7f0e']
             )
-            st.plotly_chart(fig_inatividade, width='stretch')
+            st.plotly_chart(fig_inatividade, width='stretch', key=f"fig_inatividade_{vendedora_selecionada}")
             
             # Tabela de clientes inativos
             st.subheader("Clientes Inativos (Ordenado por Inatividade)")
@@ -481,6 +555,129 @@ with tab3:
                     "Faturamento_Total": st.column_config.NumberColumn("Faturamento Total", format="R$ %.2f")
                 }
             )
+
+
+# =============== TAB 4: RANKING ===============
+with tab4:
+    st.subheader("🏆 Ranking de Vendedoras")
+    
+    # Processa dados para ranking de TODAS as vendedoras
+    vendedoras_uniques = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
+    vendedoras_uniques = [v for v in vendedoras_uniques if v.upper() not in VENDEDORES_OCULTOS]
+    
+    # Cria estrutura para ranking
+    ranking_data = []
+    
+    for vendedora in vendedoras_uniques:
+        # Vendas do período
+        df_vendedora = df_filtered[df_filtered['vendedor.C007_Primeiro_Nome'] == vendedora]
+        total_vendas = df_vendedora['Valor_Venda'].sum()
+        num_vendas = len(df_vendedora)
+        num_clientes = df_vendedora['Empresa'].nunique()
+        
+        # Procura metas
+        meta_vendedor = None
+        nome_normalizado = normalizar_nome(vendedora)
+        for vendedor_meta in metas_data:
+            if normalizar_nome(vendedor_meta['nome']) == nome_normalizado:
+                meta_vendedor = vendedor_meta
+                break
+        
+        # Calcula metas no período
+        meta_total = 0
+        if meta_vendedor is not None:
+            for meta in meta_vendedor['metas']:
+                meta_date_inicio = pd.to_datetime(meta['data_inicio']).date()
+                meta_date_fim = pd.to_datetime(meta['data_fim']).date()
+                
+                # Se a meta sobrepõe o período selecionado, conta
+                if not (meta_date_fim < data_inicio.date() or meta_date_inicio > data_fim.date()):
+                    meta_total += meta['valor']
+        
+        # Calcula percentual
+        percentual_atingido = (total_vendas / meta_total * 100) if meta_total > 0 else 0
+        
+        # Define status
+        if meta_total == 0:
+            status = "ℹ️ SEM META"
+        elif percentual_atingido >= 100:
+            status = "✅ META ATINGIDA"
+        elif percentual_atingido >= 80:
+            status = "⚠️ META PRÓXIMA"
+        else:
+            status = "❌ ABAIXO DA META"
+        
+        ranking_data.append({
+            'Vendedora': vendedora,
+            'Vendas': total_vendas,
+            'Meta': meta_total,
+            'Nº Vendas': num_vendas,
+            'Nº Clientes': num_clientes,
+            'Ticket Médio': total_vendas / num_vendas if num_vendas > 0 else 0,
+            '% Meta': percentual_atingido,
+            'Status': status
+        })
+    
+    # Cria DataFrame
+    df_ranking = pd.DataFrame(ranking_data)
+    
+    # Ordena por % da meta (descrescente) - Coloca sem meta por último
+    df_ranking_com_meta = df_ranking[df_ranking['Meta'] > 0].copy()
+    df_ranking_sem_meta = df_ranking[df_ranking['Meta'] == 0].copy()
+    
+    df_ranking_com_meta = df_ranking_com_meta.sort_values('% Meta', ascending=False).reset_index(drop=True)
+    df_ranking_sem_meta = df_ranking_sem_meta.sort_values('Vendas', ascending=False).reset_index(drop=True)
+    
+    df_ranking_com_meta.insert(0, 'Posição', range(1, len(df_ranking_com_meta) + 1))
+    df_ranking_sem_meta.insert(0, 'Posição', range(len(df_ranking_com_meta) + 1, len(df_ranking_com_meta) + len(df_ranking_sem_meta) + 1))
+    
+    df_ranking_final = pd.concat([df_ranking_com_meta, df_ranking_sem_meta], ignore_index=True)
+    
+    # Métricas gerais
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        total_vendas_geral = df_ranking_final['Vendas'].sum()
+        st.metric("💰 Vendas Totais", f"R$ {total_vendas_geral:,.0f}")
+    
+    with col2:
+        total_meta_geral = df_ranking_final['Meta'].sum()
+        st.metric("🎯 Meta Geral", f"R$ {total_meta_geral:,.0f}")
+    
+    with col3:
+        perc_geral = (total_vendas_geral / total_meta_geral * 100) if total_meta_geral > 0 else 0
+        st.metric("📈 % Meta Geral", f"{perc_geral:.1f}%")
+    
+    with col4:
+        total_vendedoras = len(df_ranking_final)
+        st.metric("👥 Total de Vendedoras", total_vendedoras)
+    
+    st.markdown("---")
+    
+    # Tabela de ranking
+    st.subheader("Ranking Completo")
+    
+    df_ranking_display = df_ranking_final.copy()
+    df_ranking_display['Posição'] = df_ranking_display['Posição'].astype(int)
+    
+    # Formata dados para exibição
+    df_ranking_display_fmt = pd.DataFrame({
+        'Posição': df_ranking_display['Posição'],
+        'Vendedora': df_ranking_display['Vendedora'],
+        'Vendas': df_ranking_display['Vendas'].apply(lambda x: f"R$ {x:,.0f}"),
+        'Meta': df_ranking_display['Meta'].apply(lambda x: f"R$ {x:,.0f}" if x > 0 else "-"),
+        'Nº Vendas': df_ranking_display['Nº Vendas'].astype(int),
+        'Nº Clientes': df_ranking_display['Nº Clientes'].astype(int),
+        'Ticket Médio': df_ranking_display['Ticket Médio'].apply(lambda x: f"R$ {x:,.0f}"),
+        '% Meta': df_ranking_display['% Meta'].apply(lambda x: f"{x:.1f}%"),
+        'Status': df_ranking_display['Status']
+    })
+    
+    st.dataframe(
+        df_ranking_display_fmt,
+        width='stretch',
+        hide_index=True
+    )
 
 st.markdown("---")
 st.markdown("👩‍💼 Dashboard Individual - Última atualização: {} | Período: {} a {}".format(
