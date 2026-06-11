@@ -1,4 +1,4 @@
-from integrations.chatechLib import HardnessAPI
+from integrations.hardnessLib import HardnessAPI
 import pandas as pd
 from datetime import datetime
 
