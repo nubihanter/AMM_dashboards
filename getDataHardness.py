@@ -1,6 +1,7 @@
 from integrations.hardnessLib import HardnessAPI
 import pandas as pd
 from datetime import datetime
+import os
 
 def _remove_duplicates(df,subset, ultima_data):
     # 1. Garantir que a coluna está em formato datetime
