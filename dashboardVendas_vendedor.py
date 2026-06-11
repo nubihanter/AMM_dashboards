@@ -50,7 +50,8 @@ def carregar_metas():
 
 
 def normalizar_nome(nome):
-    """Normaliza nomes para comparação, removendo acentos e espaços extras"""
+    """Normaliza nomes para comparação, removendo acentos e espaços extras
+    Extrai apenas o primeiro nome se houver múltiplas palavras"""
     import unicodedata
     if nome is None:
         return ""
@@ -58,7 +59,10 @@ def normalizar_nome(nome):
     nome_nfd = unicodedata.normalize('NFD', nome.upper())
     nome_sem_acentos = ''.join(char for char in nome_nfd if unicodedata.category(char) != 'Mn')
     # Remove espaços extras
-    return ' '.join(nome_sem_acentos.split())
+    nome_normalizado = ' '.join(nome_sem_acentos.split())
+    # Extrai apenas o primeiro nome
+    primeiro_nome = nome_normalizado.split()[0] if nome_normalizado else ""
+    return primeiro_nome
 
 
 FATURAMENTO_MINIMO_INATIVIDADE = 500
@@ -560,6 +564,7 @@ with tab3:
 # =============== TAB 4: RANKING ===============
 with tab4:
     st.subheader("🏆 Ranking de Vendedoras")
+    st.markdown(f"**Período:** {data_inicio.strftime('%m/%Y')}")
     
     # Processa dados para ranking de TODAS as vendedoras
     vendedoras_uniques = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
@@ -572,8 +577,6 @@ with tab4:
         # Vendas do período
         df_vendedora = df_filtered[df_filtered['vendedor.C007_Primeiro_Nome'] == vendedora]
         total_vendas = df_vendedora['Valor_Venda'].sum()
-        num_vendas = len(df_vendedora)
-        num_clientes = df_vendedora['Empresa'].nunique()
         
         # Procura metas
         meta_vendedor = None
@@ -597,87 +600,82 @@ with tab4:
         # Calcula percentual
         percentual_atingido = (total_vendas / meta_total * 100) if meta_total > 0 else 0
         
-        # Define status
-        if meta_total == 0:
-            status = "ℹ️ SEM META"
-        elif percentual_atingido >= 100:
-            status = "✅ META ATINGIDA"
-        elif percentual_atingido >= 80:
-            status = "⚠️ META PRÓXIMA"
-        else:
-            status = "❌ ABAIXO DA META"
-        
         ranking_data.append({
+            'Posição': 0,  # Será preenchido depois
             'Vendedora': vendedora,
-            'Vendas': total_vendas,
-            'Meta': meta_total,
-            'Nº Vendas': num_vendas,
-            'Nº Clientes': num_clientes,
-            'Ticket Médio': total_vendas / num_vendas if num_vendas > 0 else 0,
             '% Meta': percentual_atingido,
-            'Status': status
+            'tem_meta': meta_total > 0
         })
     
     # Cria DataFrame
     df_ranking = pd.DataFrame(ranking_data)
     
     # Ordena por % da meta (descrescente) - Coloca sem meta por último
-    df_ranking_com_meta = df_ranking[df_ranking['Meta'] > 0].copy()
-    df_ranking_sem_meta = df_ranking[df_ranking['Meta'] == 0].copy()
+    df_ranking_com_meta = df_ranking[df_ranking['tem_meta']].copy()
+    df_ranking_sem_meta = df_ranking[~df_ranking['tem_meta']].copy()
     
     df_ranking_com_meta = df_ranking_com_meta.sort_values('% Meta', ascending=False).reset_index(drop=True)
-    df_ranking_sem_meta = df_ranking_sem_meta.sort_values('Vendas', ascending=False).reset_index(drop=True)
+    df_ranking_sem_meta = df_ranking_sem_meta.sort_values('Vendedora', ascending=True).reset_index(drop=True)
     
-    df_ranking_com_meta.insert(0, 'Posição', range(1, len(df_ranking_com_meta) + 1))
-    df_ranking_sem_meta.insert(0, 'Posição', range(len(df_ranking_com_meta) + 1, len(df_ranking_com_meta) + len(df_ranking_sem_meta) + 1))
+    # Adiciona posição
+    df_ranking_com_meta['Posição'] = range(1, len(df_ranking_com_meta) + 1)
+    df_ranking_sem_meta['Posição'] = range(len(df_ranking_com_meta) + 1, len(df_ranking_com_meta) + len(df_ranking_sem_meta) + 1)
     
     df_ranking_final = pd.concat([df_ranking_com_meta, df_ranking_sem_meta], ignore_index=True)
     
-    # Métricas gerais
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        total_vendas_geral = df_ranking_final['Vendas'].sum()
-        st.metric("💰 Vendas Totais", f"R$ {total_vendas_geral:,.0f}")
-    
-    with col2:
-        total_meta_geral = df_ranking_final['Meta'].sum()
-        st.metric("🎯 Meta Geral", f"R$ {total_meta_geral:,.0f}")
-    
-    with col3:
-        perc_geral = (total_vendas_geral / total_meta_geral * 100) if total_meta_geral > 0 else 0
-        st.metric("📈 % Meta Geral", f"{perc_geral:.1f}%")
-    
-    with col4:
-        total_vendedoras = len(df_ranking_final)
-        st.metric("👥 Total de Vendedoras", total_vendedoras)
-    
     st.markdown("---")
     
-    # Tabela de ranking
-    st.subheader("Ranking Completo")
+    # Adiciona formatação para o gráfico
+    def formata_nome(row):
+        pos = int(row['Posição'])
+        nome = row['Vendedora']
+        if pos == 1:
+            return f"🥇 {nome}"
+        elif pos == 2:
+            return f"🥈 {nome}"
+        elif pos == 3:
+            return f"🥉 {nome}"
+        return f"{pos}º {nome}"
+
+    def define_cor(pos):
+        if pos == 1:
+            return "#ffd700"  # Ouro
+        elif pos == 2:
+            return "#c0c0c0"  # Prata
+        elif pos == 3:
+            return "#cd7f32"  # Bronze
+        return "#1f77b4"      # Padrão
+
+    df_ranking_final['Nome_Display'] = df_ranking_final.apply(formata_nome, axis=1)
+    df_ranking_final['Cor'] = df_ranking_final['Posição'].apply(define_cor)
     
-    df_ranking_display = df_ranking_final.copy()
-    df_ranking_display['Posição'] = df_ranking_display['Posição'].astype(int)
-    
-    # Formata dados para exibição
-    df_ranking_display_fmt = pd.DataFrame({
-        'Posição': df_ranking_display['Posição'],
-        'Vendedora': df_ranking_display['Vendedora'],
-        'Vendas': df_ranking_display['Vendas'].apply(lambda x: f"R$ {x:,.0f}"),
-        'Meta': df_ranking_display['Meta'].apply(lambda x: f"R$ {x:,.0f}" if x > 0 else "-"),
-        'Nº Vendas': df_ranking_display['Nº Vendas'].astype(int),
-        'Nº Clientes': df_ranking_display['Nº Clientes'].astype(int),
-        'Ticket Médio': df_ranking_display['Ticket Médio'].apply(lambda x: f"R$ {x:,.0f}"),
-        '% Meta': df_ranking_display['% Meta'].apply(lambda x: f"{x:.1f}%"),
-        'Status': df_ranking_display['Status']
-    })
-    
-    st.dataframe(
-        df_ranking_display_fmt,
-        width='stretch',
-        hide_index=True
+    # Cria o gráfico de barras
+    fig_ranking = px.bar(
+        df_ranking_final,
+        x='Nome_Display',
+        y='% Meta',
+        title="Ranking Geral de Vendedoras - % da Meta Atingida",
+        labels={'% Meta': '% da Meta', 'Nome_Display': 'Vendedora'},
+        color='Cor',
+        color_discrete_map='identity',
+        text='% Meta'
     )
+    
+    fig_ranking.update_traces(
+        texttemplate='%{text:.1f}%', 
+        textposition='outside'
+    )
+    
+    fig_ranking.update_layout(
+        xaxis_tickangle=-45,
+        yaxis=dict(ticksuffix="%"),
+        showlegend=False,
+        height=500,
+        margin=dict(t=50, b=100)
+    )
+    
+    st.plotly_chart(fig_ranking, width='stretch')
+
 
 st.markdown("---")
 st.markdown("👩‍💼 Dashboard Individual - Última atualização: {} | Período: {} a {}".format(
