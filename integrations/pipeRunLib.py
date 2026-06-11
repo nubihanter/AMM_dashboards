@@ -6,7 +6,7 @@ load_dotenv(".env")
 
 class PipeRunAPI:
     def __init__(self):
-        self.base_url = "https://api.pipe.run/v1"
+        self.base_url = os.getenv("PIPERUN_API_BASE_URL", "https://api.pipe.run/v1")
         self.headers = {
             "token": os.getenv("TOKEN_PIPERUN"),
             "Accept": "application/json",

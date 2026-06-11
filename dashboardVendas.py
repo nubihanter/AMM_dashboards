@@ -11,7 +11,7 @@ import os
 # Função com cache para executar atualização a cada 1 hora
 @st.cache_resource(ttl=3600)
 def executar_atualizacao_dados(): 
-    from getDataChatech import atualiza_dados_produtos_e_notas_fiscais
+    from getDataHardness import atualiza_dados_produtos_e_notas_fiscais
     atualiza_dados_produtos_e_notas_fiscais()
 
     from data_preparation import load_and_clean_data

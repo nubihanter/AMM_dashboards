@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from scipy import stats
 import os
 import warnings
-from getDataChatech import atualiza_dados_estoque
+from getDataHardness import atualiza_dados_estoque
 
 warnings.filterwarnings('ignore')
 

@@ -20,21 +20,21 @@ class HardnessAPI:
                                }
                             }
         self.session = requests.Session()
+        self.base_url = os.getenv("HARDNESS_BASE_URL", "http://amm.chatechs.com.br")
         self.session.headers.update({
                                         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
                                         "X-Requested-With": "XMLHttpRequest",
-                                        "Referer": "http://amm.chatechs.com.br/erp/"
+                                        "Referer": self.base_url + "/erp/"
                                     })
-        self.base_url = "http://amm.chatechs.com.br"
         self.url_login = self.base_url + "/hardness3/outros/login/index.php"
         self.notafiscal_url = self.base_url + "/crm/crm001/grid/crm001GridPrincipalNotasFiscais/"
         self.produtos_url = self.base_url + "/crm/crm001/grid/crm001gridPrincipalProdutos/"
         self.estoque_url = self.base_url + "/cad/cad002/grid/lista/"
         self.verbose = verbose
         self.grid_dicts = {
-            self.notafiscal_url: "9a4a52124b9ef45ed11c682313457e66",
-            self.produtos_url: "417dd51bce34fe83280ebd6b01992a4f",
-            self.estoque_url: "113ae9ef32e0698528880c4e2d154f2b"
+            self.notafiscal_url: os.getenv("HARDNESS_NOTAFISCAL_GRID_ID", "9a4a52124b9ef45ed11c682313457e66"),
+            self.produtos_url: os.getenv("HARDNESS_PRODUTOS_GRID_ID", "417dd51bce34fe83280ebd6b01992a4f"),
+            self.estoque_url: os.getenv("HARDNESS_ESTOQUE_GRID_ID", "113ae9ef32e0698528880c4e2d154f2b")
         }
 
 
