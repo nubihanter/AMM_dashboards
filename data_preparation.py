@@ -3,13 +3,25 @@ import numpy as np
 from datetime import datetime
 import os
 
-def load_and_clean_data(notas_fiscais_file=r"data\notas_fiscais_combinadas.csv", produtos_file=r"data\produtos_combinados.csv"):
+def load_and_clean_data(notas_fiscais_file=None, produtos_file=None):
     """
     Carrega, combina e limpa os arquivos CSVs de notas fiscais
     Adiciona cálculos de lucro bruto por item
     """
+    # Define caminhos padrão relativos ao diretório do script
+    if notas_fiscais_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        notas_fiscais_file = os.path.join(script_dir, "data", "notas_fiscais_combinadas.csv")
+    
+    if produtos_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        produtos_file = os.path.join(script_dir, "data", "produtos_combinados.csv")
+    
     # Carrega ambos os arquivos
     print("Carregando arquivos...")
+    print(f"Carregando notas fiscais de: {notas_fiscais_file}")
+    print(f"Carregando produtos de: {produtos_file}")
+    
     df_notas = pd.read_csv(notas_fiscais_file)
     df_produtos = pd.read_csv(produtos_file)
 
@@ -66,11 +78,15 @@ def load_and_clean_data(notas_fiscais_file=r"data\notas_fiscais_combinadas.csv",
     return df_notas
 
 
-def prepare_products_with_profit(produtos_file=r"data\produtos_combinados.csv"):
+def prepare_products_with_profit(produtos_file=None):
     """
     Carrega produtos e calcula lucro bruto por item
     Lucro Bruto = Preço_Venda - Custo_Unitário
     """
+    if produtos_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        produtos_file = os.path.join(script_dir, "data", "produtos_combinados.csv")
+    
     print("\n=== PROCESSANDO LUCRO BRUTO ===")
     df_produtos = pd.read_csv(produtos_file)
     
@@ -113,13 +129,17 @@ def prepare_products_with_profit(produtos_file=r"data\produtos_combinados.csv"):
     return df_produtos
 
 
-def prepare_stock_analysis(estoque_file=r"data\estoque_combinado.csv"):
+def prepare_stock_analysis(estoque_file=None):
     """
     Carrega dados de estoque e calcula thresholds
     Estoque mínimo: 10% do máximo histórico do produto
     Estoque crítico: 50% do mínimo
     Sugestão de compra: máx(0, mínimo - atual)
     """
+    if estoque_file is None:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        estoque_file = os.path.join(script_dir, "data", "estoque_combinado.csv")
+    
     print("\n=== PROCESSANDO ANÁLISE DE ESTOQUE ===")
     df_estoque = pd.read_csv(estoque_file)
     
@@ -168,23 +188,25 @@ def prepare_stock_analysis(estoque_file=r"data\estoque_combinado.csv"):
 
 
 if __name__ == "__main__":
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
     # Carrega e combina os dois arquivos
     df_clean = load_and_clean_data()
     
     # Salva o dataframe combinado e limpo
-    output_file = "data/notas_fiscais_combinadas_CLEAN.csv"
+    output_file = os.path.join(script_dir, "data", "notas_fiscais_combinadas_CLEAN.csv")
     df_clean.to_csv(output_file, index=False)
     print(f"\n✅ Arquivo combinado e limpo salvo como: {output_file}")
     
     # Processa produtos com cálculo de lucro bruto
     df_produtos_profit = prepare_products_with_profit()
-    output_produtos = "data/produtos_com_lucro.csv"
+    output_produtos = os.path.join(script_dir, "data", "produtos_com_lucro.csv")
     df_produtos_profit.to_csv(output_produtos, index=False)
     print(f"✅ Arquivo de produtos com lucro bruto salvo como: {output_produtos}")
     
     # Processa análise de estoque
     df_estoque = prepare_stock_analysis()
-    output_estoque = "data/estoque_analise.csv"
+    output_estoque = os.path.join(script_dir, "data", "estoque_analise.csv")
     df_estoque.to_csv(output_estoque, index=False)
     print(f"✅ Arquivo de análise de estoque salvo como: {output_estoque}")
     

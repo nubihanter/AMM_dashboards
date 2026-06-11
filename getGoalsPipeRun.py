@@ -95,7 +95,8 @@ def export_goals_by_seller():
     # Passo 5: Exportar para JSON
     print("📌 Passo 5: Exportando para JSON...")
     
-    output_file = "data/metas_por_vendedores.json"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_file = os.path.join(script_dir, "data", "metas_por_vendedores.json")
     
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(export_data, f, indent=2, ensure_ascii=False)

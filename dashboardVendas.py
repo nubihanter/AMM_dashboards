@@ -339,7 +339,8 @@ with tab5:
     st.subheader("📦 Análise de Produtos")
     
     # Carrega dados de produtos para análise detalhada
-    file_path = "data/produtos_combinados.csv"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_dir, "data", "produtos_combinados.csv")
     if os.path.exists(file_path):
         df_produtos = pd.read_csv(file_path, low_memory=False)
         

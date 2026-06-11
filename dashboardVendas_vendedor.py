@@ -42,7 +42,9 @@ def carregar_metas():
     export_goals_by_seller()  # Garante que o JSON seja atualizado antes de carregar
     """Carrega metas de vendedores do JSON"""
     try:
-        with open("data/metas_por_vendedores.json", "r", encoding='utf-8') as f:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        metas_file = os.path.join(script_dir, "data", "metas_por_vendedores.json")
+        with open(metas_file, "r", encoding='utf-8') as f:
             metas = json.load(f)
         return metas
     except:

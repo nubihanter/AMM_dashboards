@@ -64,12 +64,13 @@ def load_stock_data():
     Faz merge por ID do produto e retorna um DataFrame consolidado.
     """
     try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
         # Carrega dados de vendas
-        df_vendas = pd.read_csv("data/produtos_combinados.csv", low_memory=False)
+        df_vendas = pd.read_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), low_memory=False)
         df_vendas['T007_Data_Emissao'] = pd.to_datetime(df_vendas['T007_Data_Emissao'])
         
         # Carrega dados de estoque
-        df_estoque = pd.read_csv("data/estoque_combinado.csv", low_memory=False)
+        df_estoque = pd.read_csv(os.path.join(script_dir, "data", "estoque_combinado.csv"), low_memory=False)
         
         # Renomeia coluna de código de produto no estoque para facilitar merge
         df_estoque_renamed = df_estoque.rename(columns={
@@ -718,7 +719,8 @@ with tab4:
     
     # Carrega dados de estoque com análise
     try:
-        df_estoque_analise = pd.read_csv("data/estoque_analise.csv", low_memory=False)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        df_estoque_analise = pd.read_csv(os.path.join(script_dir, "data", "estoque_analise.csv"), low_memory=False)
         
         # Filtra apenas alertas críticos e mínimos
         df_alertas = df_estoque_analise[
