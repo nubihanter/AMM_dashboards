@@ -11,6 +11,12 @@ import os
 # Função com cache para executar atualização a cada 1 hora
 @st.cache_resource(ttl=3600)
 def executar_atualizacao_dados(): 
+    def extrair_marca(nome_produto):
+        partes = str(nome_produto).split(" - ")
+        # Se tiver pelo menos duas partes separadas por " - ", a marca está no índice 1
+        if len(partes) > 1:
+            return partes[1].strip()
+        return "Sem Marca" # Valor padrão caso o produto não tenha o traço no nome
     from getDataHardness import atualiza_dados_produtos_e_notas_fiscais
     atualiza_dados_produtos_e_notas_fiscais()
 
@@ -23,7 +29,13 @@ def executar_atualizacao_dados():
     df_notas['Data_Envio_XML'] = pd.to_datetime(df_notas['Data_Envio_XML'])
     
     df_produtos['T007_Data_Emissao'] = pd.to_datetime(df_produtos['T007_Data_Emissao'])
-    
+    # 2. Cria a nova coluna 'Marca' ANTES de cortar o nome original
+    df_produtos['Marca'] = df_produtos['T008_Descricao_Produto'].apply(extrair_marca)    
+    df_produtos['T008_Descricao_Produto'] = df_produtos['T008_Descricao_Produto'].astype(str).apply(lambda x: x.split(" - ")[0].strip())
+    # 1. Função segura para extrair a marca
+
+
+
     return df_notas, df_produtos
 
 
@@ -75,18 +87,39 @@ st.sidebar.subheader("Período de Análise")
 min_date = df_notas['T007_Data_Emissao'].min()
 max_date = df_notas['T007_Data_Emissao'].max()
 
+# Calcula datas de referência para o YTD
+hoje = datetime.now().date()
+primeiro_dia_ano = datetime(hoje.year, 1, 1).date()
+# Cria o seletor de acesso rápido
+filtro_rapido = st.sidebar.selectbox(
+    "Filtros Rápidos",
+    options=["Year to Date (YTD)", "Todo o Histórico", "Último Ano", "Personalizado"],
+    index=0 # Deixa o YTD como padrão (01/01 até Hoje)
+)
+# Define os valores do date_input com base na escolha
+if filtro_rapido == "Year to Date (YTD)":
+    data_padrao = (primeiro_dia_ano, hoje)
+elif filtro_rapido == "Todo o Histórico":
+    data_padrao = (min_date.date(), max_date.date())
+elif filtro_rapido == "Último Ano":
+    data_padrao = (hoje - timedelta(days=365), hoje)
+else:
+    # Quando em "Personalizado", inicia com o ano vigente para o usuário ajustar
+    data_padrao = (primeiro_dia_ano, hoje)
+
 date_range = st.sidebar.date_input(
-    "Selecione o período:",
-    value=(min_date.date(), max_date.date()),
+    "Selecione as datas:",
+    value=data_padrao,
     min_value=min_date.date(),
-    max_value=max_date.date()
+    max_value=max_date.date(),
+    disabled=(filtro_rapido != "Personalizado") 
 )
 
-# Validação do date_range
+# Validação de segurança para o date_range
 if len(date_range) == 1:
     date_range = (date_range[0], date_range[0])
 elif len(date_range) == 0:
-    date_range = (min_date.date(), max_date.date())
+    date_range = (primeiro_dia_ano, hoje)
 elif len(date_range) > 2:
     date_range = (date_range[0], date_range[1])
 
@@ -200,6 +233,8 @@ with tab1:
             color='Valor',
             color_continuous_scale='Blues'
         )
+        # NOVO: Força o eixo Y a sempre incluir o zero
+        fig_mensal.update_yaxes(rangemode="tozero")
         st.plotly_chart(fig_mensal, width='stretch')
     
     with col2:
@@ -217,6 +252,7 @@ with tab1:
             color='Valor',
             color_continuous_scale='Greens'
         )
+        fig_vendedoras.update_yaxes(rangemode="tozero")
         st.plotly_chart(fig_vendedoras, width='stretch')
 
 
@@ -243,6 +279,7 @@ with tab2:
             labels={'Valor': 'Valor (R$)', 'Mês': 'Período'}
         )
         fig_linha.update_traces(line=dict(color='#1f77b4', width=3), marker=dict(size=8))
+        fig_linha.update_yaxes(rangemode="tozero")
         st.plotly_chart(fig_linha, width='stretch')
     
     with col2:
@@ -256,13 +293,19 @@ with tab2:
             color='Quantidade',
             color_continuous_scale='Purples'
         )
+        fig_barras.update_yaxes(rangemode="tozero")
         st.plotly_chart(fig_barras, width='stretch')
     
     # Tabela mensal
     st.subheader("Detalhe Mensal")
     df_mensal_display = df_mensal.copy()
-    df_mensal_display['Valor'] = df_mensal_display['Valor'].apply(lambda x: f"R$ {x:,.2f}")
-    st.dataframe(df_mensal_display, width='stretch', hide_index=True)
+    st.dataframe(
+        df_mensal_display.style.format({
+            'Valor': 'R$ {:,.2f}'
+        }),
+        width='stretch',
+        hide_index=True
+    )
 
 
 # =============== TAB 3: LUCRO BRUTO ===============
@@ -290,6 +333,7 @@ with tab3:
             color_discrete_sequence=['#2ca02c']
         )
         fig_lucro.update_traces(line=dict(width=3), marker=dict(size=8))
+        fig_lucro.update_yaxes(rangemode="tozero")
         st.plotly_chart(fig_lucro, width='stretch')
     
     with col2:
@@ -323,6 +367,7 @@ with tab3:
         color='Lucro',
         color_continuous_scale='Greens'
     )
+    fig_vendedora.update_yaxes(rangemode="tozero")
     st.plotly_chart(fig_vendedora, width='stretch')
 
 
@@ -379,13 +424,17 @@ with tab4:
     st.plotly_chart(fig_inatividade, width='stretch')
     
     # Tabela de clientes inativos (top 50)
-    st.subheader("Top 50 Clientes Mais Inativos")
-    df_inativos_display = df_clientes_ultima_venda.head(50).copy()
-    df_inativos_display['Ultima_Venda'] = df_inativos_display['Ultima_Venda'].dt.strftime('%d/%m/%Y')
-    df_inativos_display['Faturamento_Total'] = df_inativos_display['Faturamento_Total'].apply(lambda x: f"R$ {x:,.2f}")
+    st.subheader("Clientes Inativos")
+    df_inativos_display = df_clientes_ultima_venda.copy()
+    df_inativos_display = df_inativos_display[df_inativos_display['Dias_Inatividade'] >= 90]
+    df_inativos_display['Ticket_Medio'] = df_inativos_display['Faturamento_Total'] / df_inativos_display['Num_Vendas']
     
     st.dataframe(
-        df_inativos_display[['Empresa', 'Ultima_Venda', 'Dias_Inatividade', 'Faturamento_Total', 'Num_Vendas']],
+        df_inativos_display[['Empresa', 'Ultima_Venda', 'Dias_Inatividade', 'Faturamento_Total', 'Ticket_Medio', 'Num_Vendas']].style.format({
+            'Ultima_Venda': lambda t: t.strftime('%d/%m/%Y') if pd.notnull(t) else '',
+            'Faturamento_Total': 'R$ {:,.2f}',
+            'Ticket_Medio': 'R$ {:,.2f}'
+        }),
         width='stretch',
         hide_index=True
     )
@@ -493,13 +542,15 @@ with tab5:
     
     # Tabela ABC detalhada
     st.subheader("Detalhamento da Curva ABC")
-    df_abc_display = df_abc_clientes.head(50).copy()
-    df_abc_display['Faturamento'] = df_abc_display['Faturamento'].apply(lambda x: f"R$ {x:,.2f}")
-    df_abc_display['Percentual_Individual'] = df_abc_display['Percentual_Individual'].apply(lambda x: f"{x:.2f}%")
-    df_abc_display['Percentual_Acumulado'] = df_abc_display['Percentual_Acumulado'].apply(lambda x: f"{x:.2f}%")
-    
+    df_abc_display = df_abc_clientes.copy()    
+
     st.dataframe(
-        df_abc_display[['Empresa', 'Faturamento', 'Percentual_Individual', 'Percentual_Acumulado', 'Classe', 'Num_Vendas']],
+        df_abc_display[['Empresa', 'Faturamento', 'Percentual_Individual', 'Percentual_Acumulado', 'Classe', 'Num_Vendas']].style.format({
+            'Faturamento': 'R$ {:,.2f}',
+            'Percentual_Individual': '{:,.2f}%',
+            'Percentual_Acumulado': '{:,.2f}%'
+        }),
+        
         width='stretch',
         hide_index=True
     )
@@ -508,14 +559,16 @@ with tab5:
 # =============== TAB 6: CURVA ABC PRODUTOS ===============
 with tab6:
     st.subheader("📦 Curva ABC de Produtos")
-    
-    # Agrupa volume/faturamento por produto
-    df_abc_produtos = df_produtos_filtered.groupby('T008_Descricao_Produto').agg({
+        
+    # MODIFICADO: Agrupa volume/faturamento por produto E por marca
+    df_abc_produtos = df_produtos_filtered.groupby(['T008_Descricao_Produto', 'Marca']).agg({
         'T008_Valor_Preco_Sem_Desconto_Unitario': 'sum',  # Volume em R$
         'T008_Quantidade': 'sum',  # Quantidade
         'T008_Id': 'count'  # Número de linhas
     }).reset_index()
-    df_abc_produtos.columns = ['Produto', 'Faturamento', 'Quantidade', 'Num_Linhas']
+    
+    # MODIFICADO: Adicionada a coluna 'Marca' na renomeação
+    df_abc_produtos.columns = ['Produto', 'Marca', 'Faturamento', 'Quantidade', 'Num_Linhas']
     
     # Ordena descendente
     df_abc_produtos = df_abc_produtos.sort_values('Faturamento', ascending=False)
@@ -600,13 +653,17 @@ with tab6:
     
     # Tabela ABC detalhada
     st.subheader("Detalhamento da Curva ABC")
-    df_abc_prod_display = df_abc_produtos.head(50).copy()
-    df_abc_prod_display['Faturamento'] = df_abc_prod_display['Faturamento'].apply(lambda x: f"R$ {x:,.2f}")
-    df_abc_prod_display['Percentual_Individual'] = df_abc_prod_display['Percentual_Individual'].apply(lambda x: f"{x:.2f}%")
-    df_abc_prod_display['Percentual_Acumulado'] = df_abc_prod_display['Percentual_Acumulado'].apply(lambda x: f"{x:.2f}%")
+    df_abc_prod_display = df_abc_produtos.copy()
+    # df_abc_prod_display['Faturamento'] = df_abc_prod_display['Faturamento'].apply(lambda x: f"R$ {x:,.2f}")
+    # df_abc_prod_display['Percentual_Individual'] = df_abc_prod_display['Percentual_Individual'].apply(lambda x: f"{x:.2f}%")
+    # df_abc_prod_display['Percentual_Acumulado'] = df_abc_prod_display['Percentual_Acumulado'].apply(lambda x: f"{x:.2f}%")
     
     st.dataframe(
-        df_abc_prod_display[['Produto', 'Faturamento', 'Percentual_Individual', 'Percentual_Acumulado', 'Classe', 'Quantidade']],
+        df_abc_prod_display[['Produto', 'Marca','Faturamento', 'Percentual_Individual', 'Percentual_Acumulado', 'Classe', 'Quantidade']].style.format({
+            'Faturamento': 'R$ {:,.2f}',
+            'Percentual_Individual': '{:,.2f}%',
+            'Percentual_Acumulado': '{:,.2f}%'
+        }),
         width='stretch',
         hide_index=True
     )

@@ -12,7 +12,7 @@ from getDataHardness import atualiza_dados_estoque
 
 warnings.filterwarnings('ignore')
 
-# Função com cache para executar atualização apenas uma vez por sessão
+# Função com cache para executar atualização dos dados de estoque
 @st.cache_resource(ttl=3600)
 def executar_atualizacao_estoque():
     atualiza_dados_estoque()
