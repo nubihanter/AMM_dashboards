@@ -69,7 +69,8 @@ warnings.filterwarnings('ignore')
 def executar_atualizacao_estoque():
     # Executa a função que busca os dados externos
     atualiza_dados_estoque()
-    atualiza_dados_produtos()
+    data_inicio = (datetime.now()-timedelta(days=120)).strftime("%Y-%m-%d")
+    atualiza_dados_produtos(data_inicio=data_inicio)
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "data")
@@ -101,7 +102,7 @@ def executar_atualizacao_estoque():
     df_estoque['D001_Descricao_Produto'] = df_estoque['D001_Descricao_Produto'].astype(str).str.split('- ').str[0]
     df_estoque['D001_Codigo_Produto'] = df_estoque['D001_Codigo_Produto'].astype(str).str.split('-').str[0]
     
-    col_qtd_estoque = 'D009A_Qtd_Liquida_Fora   + D009_Quantidade_Estoque_Liquido'
+    col_qtd_estoque = 'D009A_Qtd_Liquida_Fora	+ D009_Quantidade_Estoque_Liquido'
     df_estoque[col_qtd_estoque] = pd.to_numeric(df_estoque[col_qtd_estoque], errors='coerce').fillna(0)
     
     df_estoque = df_estoque.groupby(['D001_Descricao_Produto', 'D001_Codigo_Produto', 'D082_Marca']).agg({

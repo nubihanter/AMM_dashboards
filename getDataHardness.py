@@ -33,7 +33,7 @@ def _remove_duplicates(df,subset, ultima_data):
 
     return df_final
 
-def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, notas_fiscais = True, append=True):
+def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, notas_fiscais = True, append=True,data_inicio=None):
     api = HardnessAPI()
     api.login()
 
@@ -83,7 +83,10 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
         print(f"✅ Empresa '{empresa}' selecionada para extração de dados.")
         if produtos:
             print(f"📊 Extraindo dados de produtos para '{empresa}'...")
-            data_inicio_produtos = ultima_data_produtos.strftime("%Y-%m-%d") if append and isinstance(ultima_data_produtos, pd.Timestamp) else ""
+            if data_inicio:
+                data_inicio_produtos = data_inicio
+            else:
+                data_inicio_produtos = ultima_data_produtos.strftime("%Y-%m-%d") if append and isinstance(ultima_data_produtos, pd.Timestamp) else ""
             api.filtrar(url=api.produtos_url,data_inicio=data_inicio_produtos, data_fim=data_fim)
             produtos_data = api.get_dados(api.produtos_url)
             df_produtos_empresa = pd.DataFrame(produtos_data)
@@ -95,7 +98,10 @@ def get_raw_data(empresas_list= ["AMM EPIS", "AMM Solucoes"], produtos = True, n
             print(f"✓ Produtos extraídos para '{empresa}': {len(df_produtos_empresa)} registros.")
         if notas_fiscais:
             print(f"📊 Extraindo dados de notas fiscais para '{empresa}'...")
-            data_inicio_notas = ultima_data_notas_fiscais.strftime("%Y-%m-%d") if append and isinstance(ultima_data_notas_fiscais, pd.Timestamp) else ""
+            if data_inicio:
+                data_inicio_notas = data_inicio
+            else:
+                data_inicio_notas = ultima_data_notas_fiscais.strftime("%Y-%m-%d") if append and isinstance(ultima_data_notas_fiscais, pd.Timestamp) else ""
             api.filtrar(url=api.notafiscal_url,data_inicio=data_inicio_notas, data_fim=data_fim)
             notas_fiscais_data = api.get_dados(api.notafiscal_url)
             df_notas_fiscais_empresa = pd.DataFrame(notas_fiscais_data)
@@ -130,9 +136,9 @@ def atualiza_dados_produtos_e_notas_fiscais():
     df_notas_fiscais.to_csv(os.path.join(script_dir, "data", "notas_fiscais_combinadas.csv"), index=False)
     df_produtos.to_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), index=False)
 
-def atualiza_dados_produtos():
+def atualiza_dados_produtos(data_inicio=None):
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    _, df_produtos = get_raw_data(produtos=True, notas_fiscais=False)
+    _, df_produtos = get_raw_data(produtos=True, notas_fiscais=False, data_inicio=data_inicio)
     df_produtos.to_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), index=False)
 
 def atualiza_dados_estoque():
