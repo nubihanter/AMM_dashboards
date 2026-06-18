@@ -45,7 +45,7 @@ if not st.session_state["autenticado"]:
         botao_login = st.button("Entrar", use_container_width=True)
         
         if botao_login:
-            if senha_digitada == st.secrets["ESTOROW_DASHBOARD_PASSWORD"]: # Alinhado com o secret correto se necessário
+            if senha_digitada == st.secrets["ESTOQUE_DASHBOARD_PASSWORD"]: # Alinhado com o secret correto se necessário
                 st.session_state["autenticado"] = True
                 data_expiracao = datetime.now() + timedelta(days=3650)
                 cookie_manager.set(
