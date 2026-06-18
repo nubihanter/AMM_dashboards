@@ -10,10 +10,10 @@ from data_preparation import prepare_stock_analysis
 from getDataHardness import atualiza_dados_estoque
 import extra_streamlit_components as stx  # Biblioteca para gerenciar cookies persistentemente
 
-# Configuração da página (DEVE SER A PRIMEIRA FUNÇÃO STREAMLIT)
+# ========================= CONFIGURAÇÃO DA PÁGINA (ÚNICA E NO INÍCIO) =========================
 st.set_page_config(
-    page_title="Dashboard Gerencial de Vendas - AMM",
-    page_icon="📊",
+    page_title="Dashboard de Estoque Crítico AMM",
+    page_icon="📦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -21,13 +21,11 @@ st.set_page_config(
 # --- SISTEMA DE AUTENTICAÇÃO VIA COOKIES ---
 cookie_manager = stx.CookieManager()
 
-# 1. Check if we just authenticated in this session, otherwise read from browser cookies
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
 
 auth_token = cookie_manager.get(cookie="amm_dashboard_token")
 
-# 2. Grant access if either the cookie is valid OR the session state was just set to True
 if auth_token == st.secrets["ESTOQUE_DASHBOARD_PASSWORD"]:
     st.session_state["autenticado"] = True
 
@@ -47,18 +45,14 @@ if not st.session_state["autenticado"]:
         botao_login = st.button("Entrar", use_container_width=True)
         
         if botao_login:
-            if senha_digitada == st.secrets["ESTOQUE_DASHBOARD_PASSWORD"]:
-                # Set the session state first so the UI unlocks immediately
+            if senha_digitada == st.secrets["ESTOROW_DASHBOARD_PASSWORD"]: # Alinhado com o secret correto se necessário
                 st.session_state["autenticado"] = True
-                
-                # Save the persistent cookie for future visits (10 years)
                 data_expiracao = datetime.now() + timedelta(days=3650)
                 cookie_manager.set(
                     cookie="amm_dashboard_token", 
                     val=senha_digitada,
                     expires_at=data_expiracao
                 )
-                
                 st.success("Autenticado com sucesso! Carregando...")
                 st.rerun()
             else:
@@ -70,76 +64,67 @@ if not st.session_state["autenticado"]:
 
 warnings.filterwarnings('ignore')
 
-# Função com cache para executar atualização dos dados de estoque
-@st.cache_resource(ttl=3600)
+# Função com cache correto (cache_data) para dados do Pandas
+@st.cache_data(ttl=3600, show_spinner="Atualizando dados de estoque...")
 def executar_atualizacao_estoque():
+    # Executa a função que busca os dados externos
     atualiza_dados_estoque()
-    """
-    Carrega dados de vendas (produtos_combinados.csv) e estoque (estoque_combinado.csv).
-    Faz merge por ID do produto e retorna um DataFrame consolidado.
-    """
-    try:
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        
-        # Carrega dados de vendas
-        df_vendas = pd.read_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), low_memory=False)
-        df_vendas['T007_Data_Emissao'] = pd.to_datetime(df_vendas['T007_Data_Emissao'])
-        df_vendas['T008_Descricao_Produto'] = df_vendas['T008_Descricao_Produto'].astype(str).str.split('- ').str[0]
-        df_vendas['T008_Codigo_Produto'] = df_vendas['T008_Codigo_Produto'].astype(str).str.split('-').str[0]
-        
-        df_vendas = df_vendas.groupby(['T007_Data_Emissao', 'T008_Codigo_Produto', 'T008_Descricao_Produto']).agg({
-            'T008_Quantidade': 'sum',
-            'T008_Valor_Total_Preco_Sem_Desconto': 'sum'
-        }).reset_index()
-
-        # Carrega dados de estoque
-        df_estoque = pd.read_csv(os.path.join(script_dir, "data", "estoque_combinado.csv"), low_memory=False)
-        df_estoque['D001_Descricao_Produto'] = df_estoque['D001_Descricao_Produto'].astype(str).str.split('- ').str[0]
-        df_estoque['D001_Codigo_Produto'] = df_estoque['D001_Codigo_Produto'].astype(str).str.split('-').str[0]
-        
-        # Ajuste no nome da coluna de quantidade para evitar quebras por espaços internos
-        col_qtd_estoque = 'D009A_Qtd_Liquida_Fora	+ D009_Quantidade_Estoque_Liquido'
-        df_estoque[col_qtd_estoque] = pd.to_numeric(df_estoque[col_qtd_estoque], errors='coerce').fillna(0)
-        
-        df_estoque = df_estoque.groupby(['D001_Descricao_Produto', 'D001_Codigo_Produto', 'D082_Marca']).agg({
-            col_qtd_estoque: 'sum'
-        }).reset_index()
-
-        # Renomeia coluna de código de produto no estoque para facilitar merge
-        df_estoque_renamed = df_estoque.rename(columns={
-            'D001_Codigo_Produto': 'T008_Codigo_Produto',
-            'D001_Descricao_Produto': 'D001_Descricao_Estoque',
-            col_qtd_estoque: 'Estoque_Quantidade'
-        })
-        
-        # Merge: left join na tabela de vendas (para manter histórico completo)
-        df_merged = df_vendas.merge(
-            df_estoque_renamed[['T008_Codigo_Produto', 'Estoque_Quantidade', 'D001_Descricao_Estoque', 'D082_Marca']],
-            on='T008_Codigo_Produto',
-            how='left'
-        )
-        
-        # Preenche estoque faltante com 0 e garante tipos corretos
-        df_merged['Estoque_Quantidade'] = df_merged['Estoque_Quantidade'].fillna(0).astype(float)
-        df_merged['D082_Marca'] = df_merged['D082_Marca'].fillna('N/A').astype(str)
-        
-        # Remove linhas com vendas zeradas ou inválidas
-        df_merged = df_merged[df_merged['T008_Quantidade'] > 0].copy()
-
-        df_estoque_analysis = prepare_stock_analysis()
-        return df_merged, df_estoque_analysis
     
-    except Exception as e:
-        st.error(f"Erro ao carregar dados: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(script_dir, "data")
+    
+    # Garante que o diretório data exista em produção
+    os.makedirs(data_dir, exist_ok=True)
+    
+    caminho_vendas = os.path.join(data_dir, "produtos_combinados.csv")
+    caminho_estoque = os.path.join(data_dir, "estoque_combinado.csv")
+    
+    # Validação explicativa caso o arquivo não tenha sido gerado
+    if not os.path.exists(caminho_vendas) or not os.path.exists(caminho_estoque):
+        # Levantamos um erro para NÃO cachear o resultado vazio indesejado
+        raise FileNotFoundError(f"Arquivos não encontrados em {data_dir}. Verifique a função atualiza_dados_estoque().")
 
-# ========================= CONFIGURAÇÃO STREAMLIT =========================
-st.set_page_config(
-    page_title="Dashboard de Estoque Crítico AMM",
-    page_icon="📦",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+    # Carrega dados de vendas
+    df_vendas = pd.read_csv(caminho_vendas, low_memory=False)
+    df_vendas['T007_Data_Emissao'] = pd.to_datetime(df_vendas['T007_Data_Emissao'])
+    df_vendas['T008_Descricao_Produto'] = df_vendas['T008_Descricao_Produto'].astype(str).str.split('- ').str[0]
+    df_vendas['T008_Codigo_Produto'] = df_vendas['T008_Codigo_Produto'].astype(str).str.split('-').str[0]
+    
+    df_vendas = df_vendas.groupby(['T007_Data_Emissao', 'T008_Codigo_Produto', 'T008_Descricao_Produto']).agg({
+        'T008_Quantidade': 'sum',
+        'T008_Valor_Total_Preco_Sem_Desconto': 'sum'
+    }).reset_index()
+
+    # Carrega dados de estoque
+    df_estoque = pd.read_csv(caminho_estoque, low_memory=False)
+    df_estoque['D001_Descricao_Produto'] = df_estoque['D001_Descricao_Produto'].astype(str).str.split('- ').str[0]
+    df_estoque['D001_Codigo_Produto'] = df_estoque['D001_Codigo_Produto'].astype(str).str.split('-').str[0]
+    
+    col_qtd_estoque = 'D009A_Qtd_Liquida_Fora   + D009_Quantidade_Estoque_Liquido'
+    df_estoque[col_qtd_estoque] = pd.to_numeric(df_estoque[col_qtd_estoque], errors='coerce').fillna(0)
+    
+    df_estoque = df_estoque.groupby(['D001_Descricao_Produto', 'D001_Codigo_Produto', 'D082_Marca']).agg({
+        col_qtd_estoque: 'sum'
+    }).reset_index()
+
+    df_estoque_renamed = df_estoque.rename(columns={
+        'D001_Codigo_Produto': 'T008_Codigo_Produto',
+        'D001_Descricao_Produto': 'D001_Descricao_Estoque',
+        col_qtd_estoque: 'Estoque_Quantidade'
+    })
+    
+    df_merged = df_vendas.merge(
+        df_estoque_renamed[['T008_Codigo_Produto', 'Estoque_Quantidade', 'D001_Descricao_Estoque', 'D082_Marca']],
+        on='T008_Codigo_Produto',
+        how='left'
+    )
+    
+    df_merged['Estoque_Quantidade'] = df_merged['Estoque_Quantidade'].fillna(0).astype(float)
+    df_merged['D082_Marca'] = df_merged['D082_Marca'].fillna('N/A').astype(str)
+    df_merged = df_merged[df_merged['T008_Quantidade'] > 0].copy()
+
+    df_estoque_analysis = prepare_stock_analysis()
+    return df_merged, df_estoque_analysis
 
 # ========================= CSS CUSTOMIZADO =========================
 st.markdown("""
@@ -153,11 +138,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ========================= CARREGAMENTO DE DADOS =========================
-df_stock_data, df_estoque_analise = executar_atualizacao_estoque()
-
-if df_stock_data.empty:
-    st.error("❌ Não foi possível carregar os dados. Verifique se os arquivos CSV estão no diretório 'data/'")
+# ========================= CARREGAMENTO SEGURO DE DADOS =========================
+try:
+    df_stock_data, df_estoque_analise = executar_atualizacao_estoque()
+except Exception as e:
+    st.error(f"❌ Não foi possível carregar os dados: {str(e)}")
+    st.info("💡 Dica: Verifique se a função `atualiza_dados_estoque()` está salvando os arquivos CSV na pasta 'data/' correta ou se as credenciais de API estão configuradas nos Secrets do Streamlit.")
     st.stop()
 
 # ========================= HEADER =========================
