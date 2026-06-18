@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import os
 import warnings
 from data_preparation import prepare_stock_analysis
-from getDataHardness import atualiza_dados_estoque
+from getDataHardness import atualiza_dados_estoque, atualiza_dados_produtos
 import extra_streamlit_components as stx  # Biblioteca para gerenciar cookies persistentemente
 
 # ========================= CONFIGURAÇÃO DA PÁGINA (ÚNICA E NO INÍCIO) =========================
@@ -69,6 +69,7 @@ warnings.filterwarnings('ignore')
 def executar_atualizacao_estoque():
     # Executa a função que busca os dados externos
     atualiza_dados_estoque()
+    atualiza_dados_produtos()
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "data")

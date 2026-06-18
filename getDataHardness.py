@@ -130,6 +130,11 @@ def atualiza_dados_produtos_e_notas_fiscais():
     df_notas_fiscais.to_csv(os.path.join(script_dir, "data", "notas_fiscais_combinadas.csv"), index=False)
     df_produtos.to_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), index=False)
 
+def atualiza_dados_produtos():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    _, df_produtos = get_raw_data(produtos=True, notas_fiscais=False)
+    df_produtos.to_csv(os.path.join(script_dir, "data", "produtos_combinados.csv"), index=False)
+
 def atualiza_dados_estoque():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     df_estoque = get_estoque()
