@@ -6,3 +6,4 @@ scipy
 requests
 python-dotenv
 beautifulsoup4
+extra-streamlit-components

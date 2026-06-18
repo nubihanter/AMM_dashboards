@@ -6,17 +6,76 @@ from plotly.subplots import make_subplots
 import numpy as np
 from datetime import datetime, timedelta
 import os
+import extra_streamlit_components as stx  # Biblioteca para gerenciar cookies persistentemente
 
+# Configuração da página (DEVE SER A PRIMEIRA FUNÇÃO STREAMLIT)
+st.set_page_config(
+    page_title="Dashboard Gerencial de Vendas - AMM",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# --- SISTEMA DE AUTENTICAÇÃO VIA COOKIES ---
+cookie_manager = stx.CookieManager()
+
+# 1. Check if we just authenticated in this session, otherwise read from browser cookies
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+
+auth_token = cookie_manager.get(cookie="amm_dashboard_token")
+
+# 2. Grant access if either the cookie is valid OR the session state was just set to True
+if auth_token == st.secrets["SENHA_PIPERUN"]:
+    st.session_state["autenticado"] = True
+
+if not st.session_state["autenticado"]:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("""
+            <div style='background-color: #f8f9fa; padding: 30px; border-radius: 10px; border-top: 5px solid #1f77b4; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>
+                <h2 style='text-align: center; color: #1f77b4;'>🔒 Acesso Restrito</h2>
+                <p style='text-align: center; color: #6c757d;'>Insira a senha do PipeRun para acessar o painel.</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        senha_digitada = st.text_input("Senha", type="password", key="input_senha")
+        botao_login = st.button("Entrar", use_container_width=True)
+        
+        if botao_login:
+            if senha_digitada == st.secrets["SENHA_PIPERUN"]:
+                # Set the session state first so the UI unlocks immediately
+                st.session_state["autenticado"] = True
+                
+                # Save the persistent cookie for future visits (10 years)
+                data_expiracao = datetime.now() + timedelta(days=3650)
+                cookie_manager.set(
+                    cookie="amm_dashboard_token", 
+                    val=senha_digitada,
+                    expires_at=data_expiracao
+                )
+                
+                st.success("Autenticado com sucesso! Carregando...")
+                st.rerun()
+            else:
+                st.error("Senha incorreta. Tente novamente.")
+                
+    st.stop()
+
+# --- FIM DO SISTEMA DE AUTENTICAÇÃO ---
+# O restante do seu código roda normalmente abaixo caso o usuário esteja autenticado
 
 # Função com cache para executar atualização a cada 1 hora
 @st.cache_resource(ttl=3600)
 def executar_atualizacao_dados(): 
     def extrair_marca(nome_produto):
         partes = str(nome_produto).split(" - ")
-        # Se tiver pelo menos duas partes separadas por " - ", a marca está no índice 1
         if len(partes) > 1:
             return partes[1].strip()
-        return "Sem Marca" # Valor padrão caso o produto não tenha o traço no nome
+        return "Sem Marca"
+    
     from getDataHardness import atualiza_dados_produtos_e_notas_fiscais
     atualiza_dados_produtos_e_notas_fiscais()
 
@@ -24,30 +83,16 @@ def executar_atualizacao_dados():
     df_notas = load_and_clean_data()
     df_produtos = prepare_products_with_profit()
     
-    # Converte colunas de data
     df_notas['T007_Data_Emissao'] = pd.to_datetime(df_notas['T007_Data_Emissao'])
     df_notas['Data_Envio_XML'] = pd.to_datetime(df_notas['Data_Envio_XML'])
     
     df_produtos['T007_Data_Emissao'] = pd.to_datetime(df_produtos['T007_Data_Emissao'])
-    # 2. Cria a nova coluna 'Marca' ANTES de cortar o nome original
     df_produtos['Marca'] = df_produtos['T008_Descricao_Produto'].apply(extrair_marca)    
     df_produtos['T008_Descricao_Produto'] = df_produtos['T008_Descricao_Produto'].astype(str).apply(lambda x: x.split(" - ")[0].strip())
-    # 1. Função segura para extrair a marca
-
-
 
     return df_notas, df_produtos
 
-
 FATURAMENTO_MINIMO_INATIVIDADE = 500
-
-# Configuração da página
-st.set_page_config(
-    page_title="Dashboard Gerencial de Vendas - AMM",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # CSS customizado
 st.markdown("""
