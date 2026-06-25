@@ -201,6 +201,30 @@ with col3:
 with col4:
     st.metric("Nº Clientes", num_clientes)
 
+# Botão para forçar a atualização dos dados
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚙️ Manutenção")
+if st.sidebar.button("Forçar Atualização Completa"):
+    st.sidebar.info("Iniciando atualização forçada...")
+    
+    # 1. Limpa o cache de recursos do Streamlit
+    st.cache_resource.clear()
+
+    # 2. Define os caminhos para os arquivos de dados
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(script_dir, "data")
+    arquivos_para_deletar = [
+        os.path.join(data_dir, "notas_fiscais_combinadas.csv"),
+        os.path.join(data_dir, "produtos_combinados.csv"),
+        os.path.join(data_dir, "metas_por_vendedores.json")
+    ]
+
+    # 3. Deleta os arquivos CSV para forçar a busca completa
+    for arquivo in arquivos_para_deletar:
+        if os.path.exists(arquivo):
+            os.remove(arquivo)
+            st.sidebar.write(f"Arquivo {os.path.basename(arquivo)} removido.")
+    st.rerun()
 # Tabs principais
 tab1, tab2, tab3, tab4 = st.tabs(
     ["🎯 Metas", "📊 Vendas", "⏱️ Clientes Inativos", "🏆 Ranking"]
