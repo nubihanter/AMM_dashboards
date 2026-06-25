@@ -213,9 +213,8 @@ if st.sidebar.button("Forçar Atualização Completa"):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     data_dir = os.path.join(script_dir, "data")
     arquivos_para_deletar = [
-        os.path.join(data_dir, "notas_fiscais_combinadas.csv"),
         os.path.join(data_dir, "produtos_combinados.csv"),
-        os.path.join(data_dir, "metas_por_vendedores.json")
+        os.path.join(data_dir, "estoque_combinado.csv")
     ]
 
     # 3. Deleta os arquivos CSV para forçar a busca completa
