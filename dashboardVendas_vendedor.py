@@ -385,35 +385,41 @@ with tab3:
     if len(df_vendedor) == 0:
         st.warning("Sem dados de clientes para esta visualização")
     else:
-        # Agrupamento base adicionando Data da Primeira Venda e Nome da Vendedora
-        df_clientes = df_vendedor.groupby('Empresa').agg(
+        # 1. Busca as datas GLOBAIS do cliente (usando df completo, sem filtro de vendedor)
+        df_global_datas = df.groupby('Empresa').agg(
             Ultima_Venda=('T007_Data_Emissao', 'max'),
-            Primeira_Venda=('T007_Data_Emissao', 'min'),
+            Primeira_Venda=('T007_Data_Emissao', 'min')
+        ).reset_index()
+
+        # 2. Agrupa os dados do VENDEDOR atual (para saber quanto ELE vendeu para essa empresa)
+        df_clientes = df_vendedor.groupby('Empresa').agg(
             Faturamento_Total=('Valor_Venda', 'sum'),
             Num_Vendas=('Valor_Venda', 'count'),
             Vendedora=('vendedor.C007_Primeiro_Nome', 'first')
         ).reset_index()
         
-        # Filtra clientes com faturamento mínimo
+        # 3. Junta as informações: Histórico do Vendedor + Datas Globais de Atividade
+        df_clientes = pd.merge(df_clientes, df_global_datas, on='Empresa', how='left')
+        
+        # Filtra clientes com faturamento mínimo (pelo histórico do vendedor)
         df_clientes = df_clientes[df_clientes['Faturamento_Total'] >= FATURAMENTO_MINIMO_INATIVIDADE].copy()
         
-        data_referencia = df_vendedor['T007_Data_Emissao'].max()
+        # Calcula dias de inatividade baseado na última venda GLOBAL
+        data_referencia = df['T007_Data_Emissao'].max()
         df_clientes['Dias_Inatividade'] = (data_referencia - df_clientes['Ultima_Venda']).dt.days
         
-        # Faturamento Médio Mensal dos Últimos 6 Meses do Cliente
+        # Faturamento Médio Mensal dos Últimos 6 Meses do Cliente (Usa o histórico GLOBAL)
         def calcular_ticket_6m(empresa):
-            df_cliente = df_vendedor[df_vendedor['Empresa'] == empresa]
+            # Alterado de df_vendedor para df (analisa a força de compra real do cliente na empresa)
+            df_cliente = df[df['Empresa'] == empresa]
             if df_cliente.empty: return 0
             
             ultima_data = df_cliente['T007_Data_Emissao'].max()
             seis_meses_antes = ultima_data - pd.Timedelta(days=180)
             
-            # Filtra apenas compras feitas nos 6 meses finais de atividade do cliente
             vendas_6m = df_cliente[df_cliente['T007_Data_Emissao'] >= seis_meses_antes]
-            
             if vendas_6m.empty: return 0
             
-            # Soma todo o valor vendido no período e divide por 6 meses
             return vendas_6m['Valor_Venda'].sum() / 6
 
         df_clientes['Ticket_Medio_6m'] = df_clientes['Empresa'].apply(calcular_ticket_6m)
@@ -466,7 +472,7 @@ with tab3:
                         text_auto=True
                     )
                     fig_status.update_layout(yaxis_title="Qtd Clientes")
-                    st.plotly_chart(fig_status, width='stretch')
+                    st.plotly_chart(fig_status, use_container_width=True)
                     
                 with col_graf2:
                     # Scatter Plot: Dias Inatividade vs Ticket
@@ -475,10 +481,10 @@ with tab3:
                         x='Dias_Inatividade',
                         y='Ticket_Medio_6m',
                         color='Status',
-                        size='Ticket_Medio_6m',
+                        size='Faturamento_Total',
                         hover_name='Empresa',
                         title="Matriz de Risco: Inatividade vs Ticket Médio",
-                        labels={'Dias_Inatividade': 'Dias sem comprar', 'Ticket_Medio_6m': 'Ticket Médio (6m)'},
+                        labels={'Dias_Inatividade': 'Dias sem comprar', 'Ticket_Medio_6m': 'Fat. Médio Mensal (6m)'},
                         category_orders={"Status": ["Novo", "Ativo", "Em Risco", "Inativo"]},
                         color_discrete_map={"Novo": "#17becf", "Ativo": "#2ca02c", "Em Risco": "#ff7f0e", "Inativo": "#d62728"}
                     )
@@ -486,7 +492,7 @@ with tab3:
                     fig_scatter.add_vline(x=30, line_dash="dash", line_color="green", annotation_text="Ativos", annotation_position="top left")
                     fig_scatter.add_vline(x=90, line_dash="dash", line_color="red", annotation_text="Inativos", annotation_position="top right")
                     
-                    st.plotly_chart(fig_scatter, width='stretch')
+                    st.plotly_chart(fig_scatter, use_container_width=True)
             else:
                 st.info("Não há clientes nas categorias AA, A ou B para análise de risco neste período.")
 
@@ -502,7 +508,6 @@ with tab3:
             df_display = df_display.sort_values(by=['Ordem', 'Dias_Inatividade'], ascending=[True, False]).drop('Ordem', axis=1)
             
             # ================= CRIANDO OS FILTROS =================
-            # Define as opções disponíveis ordenadas pela prioridade
             opcoes_curva = [c for c in ['AA', 'A', 'B', 'C', 'D'] if c in df_display['Curva'].unique()]
             opcoes_status = [s for s in ['Novo', 'Ativo', 'Em Risco', 'Inativo'] if s in df_display['Status'].unique()]
             
@@ -535,7 +540,6 @@ with tab3:
             # Ajustando a ordem das colunas para visualização
             cols_display = ['Empresa', 'Vendedora', 'Curva', 'Status', 'Ticket_Medio_6m', 'Dias_Inatividade', 'Ultima_Venda', 'Faturamento_Total', 'Num_Vendas']
             
-            # Plota a tabela filtrada
             st.dataframe(
                 df_tabela_filtrada[cols_display],
                 width='stretch',
@@ -545,9 +549,9 @@ with tab3:
                     "Status": st.column_config.TextColumn("Status"),
                     "Ticket_Medio_6m": st.column_config.NumberColumn("Fat. Mensal (6m)", format="R$ %.2f"),
                     "Dias_Inatividade": st.column_config.NumberColumn("Dias Inativos"),
-                    "Ultima_Venda": st.column_config.TextColumn("Última Venda"),
-                    "Faturamento_Total": st.column_config.NumberColumn("Fat. Total", format="R$ %.2f"),
-                    "Num_Vendas": st.column_config.NumberColumn("Nº Vendas")
+                    "Ultima_Venda": st.column_config.TextColumn("Última Venda (Global)"),
+                    "Faturamento_Total": st.column_config.NumberColumn("Fat. Total (Vendedor)", format="R$ %.2f"),
+                    "Num_Vendas": st.column_config.NumberColumn("Nº Vendas (Vendedor)")
                 }
             )
 
