@@ -18,7 +18,7 @@ VENDEDORES_OCULTOS = [
     "LENIRA",
     "RODRIGO",
     "ROBSON"
-    ]
+]
 
 # Função com cache para executar atualização a cada 1 hora
 @st.cache_resource(ttl=3600/2)
@@ -71,7 +71,7 @@ FATURAMENTO_MINIMO_INATIVIDADE = 500
 
 # Configuração da página
 st.set_page_config(
-    page_title="Dashboard Individual - Vendedor - AMM",
+    page_title="Dashboard - AMM",
     page_icon="👩‍💼",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -112,7 +112,7 @@ df = executar_atualizacao_dados()
 metas_data = carregar_metas()
 
 # Header
-st.markdown('<div class="main-header">👩‍💼 Dashboard Individual - Vendedor</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-header">📊 Dashboard de Vendas</div>', unsafe_allow_html=True)
 
 # Sidebar - Seletor de Vendedor
 st.sidebar.header("🔍 Seleção")
@@ -120,15 +120,20 @@ st.sidebar.header("🔍 Seleção")
 # Cria lista de vendedores únicos
 vendedoras_list = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
 vendedoras_list = [v for v in vendedoras_list if v.upper() not in VENDEDORES_OCULTOS]
+# ADICIONA "EMPRESA" COMO PRIMEIRA OPÇÃO
+vendedoras_list.insert(0, "EMPRESA") 
 
 vendedora_selecionada = st.sidebar.selectbox(
-    "Selecione a Vendedora:",
+    "Selecione a Visão:",
     vendedoras_list,
     index=0
 )
 
-# Filtra dados do vendedor selecionado
-df_vendedor = df[df['vendedor.C007_Primeiro_Nome'] == vendedora_selecionada].copy()
+# Filtra dados de acordo com a seleção
+if vendedora_selecionada == "EMPRESA":
+    df_vendedor = df.copy() # Pega toda a empresa
+else:
+    df_vendedor = df[df['vendedor.C007_Primeiro_Nome'] == vendedora_selecionada].copy()
 
 # Seletor de Mês/Ano
 st.sidebar.subheader("📅 Período de Análise")
@@ -141,6 +146,12 @@ ano_padrao = agora.year
 # Get available months and years from data
 meses_disponiveis = sorted(df_vendedor['T007_Data_Emissao'].dt.month.unique())
 anos_disponiveis = sorted(df_vendedor['T007_Data_Emissao'].dt.year.unique(), reverse=True)
+
+# Handle empty data scenarios
+if not meses_disponiveis:
+    meses_disponiveis = [mes_padrao]
+if not anos_disponiveis:
+    anos_disponiveis = [ano_padrao]
 
 # Selectboxes para mês e ano
 col_mes, col_ano = st.sidebar.columns(2)
@@ -174,7 +185,7 @@ df_vendedor_filtered = df_vendedor[
     (df_vendedor['T007_Data_Emissao'].dt.date <= data_fim.date())
 ].copy()
 
-# Filtra todos os dados para ranking (todas as vendedoras no período)
+# Filtra todos os dados para ranking (todas as vendedoras no período - usado apenas na aba ranking)
 df_filtered = df[
     (df['T007_Data_Emissao'].dt.date >= data_inicio.date()) &
     (df['T007_Data_Emissao'].dt.date <= data_fim.date())
@@ -225,6 +236,7 @@ if st.sidebar.button("Forçar Atualização Completa"):
             os.remove(arquivo)
             st.sidebar.write(f"Arquivo {os.path.basename(arquivo)} removido.")
     st.rerun()
+
 # Tabs principais
 tab1, tab2, tab3, tab4 = st.tabs(
     ["🎯 Metas", "📊 Vendas", "⏱️ Clientes Inativos", "🏆 Ranking"]
@@ -234,13 +246,37 @@ tab1, tab2, tab3, tab4 = st.tabs(
 with tab1:
     st.subheader(f"🎯 Metas - {vendedora_selecionada}")
     
-    # Procura a meta do vendedor
+    # Lógica para pegar/montar a meta correta
     meta_vendedor = None
-    nome_normalizado = normalizar_nome(vendedora_selecionada)
-    for vendedor_meta in metas_data:
-        if normalizar_nome(vendedor_meta['nome']) == nome_normalizado:
-            meta_vendedor = vendedor_meta
-            break
+    
+    if vendedora_selecionada == "EMPRESA":
+        # Constrói uma "meta falsa" consolidando os dados de todos
+        metas_agrupadas = {}
+        for vendedor_meta in metas_data:
+            for meta in vendedor_meta['metas']:
+                key = (meta['data_inicio'], meta['data_fim'])
+                if key not in metas_agrupadas:
+                    metas_agrupadas[key] = 0
+                metas_agrupadas[key] += meta['valor']
+        
+        if metas_agrupadas:
+            metas_empresa_list = []
+            for (inicio, fim), valor in metas_agrupadas.items():
+                metas_empresa_list.append({
+                    'data_inicio': inicio,
+                    'data_fim': fim,
+                    'valor': valor,
+                    'goal_title': 'Meta Global Consolidada'
+                })
+            meta_vendedor = {'nome': 'EMPRESA', 'metas': metas_empresa_list}
+            
+    else:
+        # Busca a meta individual
+        nome_normalizado = normalizar_nome(vendedora_selecionada)
+        for vendedor_meta in metas_data:
+            if normalizar_nome(vendedor_meta['nome']) == nome_normalizado:
+                meta_vendedor = vendedor_meta
+                break
     
     if meta_vendedor is None:
         # Mostra vendas sem comparação de meta
@@ -263,41 +299,42 @@ with tab1:
         # Gráfico de vendas diárias mesmo sem meta
         st.subheader("Evolução de Vendas")
         
-        df_vendedor_filtered['Data'] = df_vendedor_filtered['T007_Data_Emissao'].dt.date
-        df_diario = df_vendedor_filtered.groupby('Data').agg({
-            'Valor_Venda': ['sum', 'count']
-        }).reset_index()
-        df_diario.columns = ['Data', 'Valor', 'Quantidade']
-        df_diario = df_diario.sort_values('Data')
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if len(df_diario) > 0:
-                fig_linha = px.line(
-                    df_diario,
-                    x='Data',
-                    y='Valor',
-                    markers=True,
-                    title="Evolução de Vendas (Diário)",
-                    labels={'Valor': 'Valor (R$)', 'Data': 'Dia'},
-                    color_discrete_sequence=['#1f77b4']
-                )
-                fig_linha.update_traces(line=dict(width=3), marker=dict(size=8))
-                st.plotly_chart(fig_linha, width='stretch', key="fig_linha_sem_meta")
-        
-        with col2:
-            if len(df_diario) > 0:
-                fig_barras = px.bar(
-                    df_diario,
-                    x='Data',
-                    y='Quantidade',
-                    title="Quantidade de Vendas (Diário)",
-                    labels={'Quantidade': 'Nº de Vendas', 'Data': 'Dia'},
-                    color='Quantidade',
-                    color_continuous_scale='Blues'
-                )
-                st.plotly_chart(fig_barras, width='stretch', key="fig_barras_sem_meta")
+        if not df_vendedor_filtered.empty:
+            df_vendedor_filtered['Data'] = df_vendedor_filtered['T007_Data_Emissao'].dt.date
+            df_diario = df_vendedor_filtered.groupby('Data').agg({
+                'Valor_Venda': ['sum', 'count']
+            }).reset_index()
+            df_diario.columns = ['Data', 'Valor', 'Quantidade']
+            df_diario = df_diario.sort_values('Data')
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if len(df_diario) > 0:
+                    fig_linha = px.line(
+                        df_diario,
+                        x='Data',
+                        y='Valor',
+                        markers=True,
+                        title="Evolução de Vendas (Diário)",
+                        labels={'Valor': 'Valor (R$)', 'Data': 'Dia'},
+                        color_discrete_sequence=['#1f77b4']
+                    )
+                    fig_linha.update_traces(line=dict(width=3), marker=dict(size=8))
+                    st.plotly_chart(fig_linha, width='stretch', key="fig_linha_sem_meta")
+            
+            with col2:
+                if len(df_diario) > 0:
+                    fig_barras = px.bar(
+                        df_diario,
+                        x='Data',
+                        y='Quantidade',
+                        title="Quantidade de Vendas (Diário)",
+                        labels={'Quantidade': 'Nº de Vendas', 'Data': 'Dia'},
+                        color='Quantidade',
+                        color_continuous_scale='Blues'
+                    )
+                    st.plotly_chart(fig_barras, width='stretch', key="fig_barras_sem_meta")
     else:
         # Calcula meta total no período selecionado
         meta_periodo = 0
@@ -466,6 +503,9 @@ with tab2:
             df_diario.columns = ['Data', 'Valor', 'Quantidade']
             df_diario = df_diario.sort_values('Data')
             
+            # Define cor diferente se for a empresa
+            cor_linha = '#2ca02c' if vendedora_selecionada == "EMPRESA" else '#1f77b4'
+            
             fig_linha = px.line(
                 df_diario,
                 x='Data',
@@ -473,13 +513,15 @@ with tab2:
                 markers=True,
                 title="Evolução de Vendas (Diário)",
                 labels={'Valor': 'Valor (R$)', 'Data': 'Dia'},
-                color_discrete_sequence=['#1f77b4']
+                color_discrete_sequence=[cor_linha]
             )
             fig_linha.update_traces(line=dict(width=3), marker=dict(size=8))
             st.plotly_chart(fig_linha, width='stretch', key=f"fig_linha_tab2_{vendedora_selecionada}")
         
         with col2:
             # Quantidade de vendas
+            escala_cores = 'Greens' if vendedora_selecionada == "EMPRESA" else 'Blues'
+            
             fig_barras = px.bar(
                 df_diario,
                 x='Data',
@@ -487,7 +529,7 @@ with tab2:
                 title="Quantidade de Vendas (Diário)",
                 labels={'Quantidade': 'Nº de Vendas', 'Data': 'Dia'},
                 color='Quantidade',
-                color_continuous_scale='Blues'
+                color_continuous_scale=escala_cores
             )
             st.plotly_chart(fig_barras, width='stretch', key=f"fig_barras_tab2_{vendedora_selecionada}")
         
@@ -519,9 +561,9 @@ with tab3:
     st.subheader(f"⏱️ Clientes Inativos - {vendedora_selecionada}")
     
     if len(df_vendedor) == 0:
-        st.warning("Sem dados de clientes para este vendedor")
+        st.warning("Sem dados de clientes para esta visualização")
     else:
-        # Calcula última venda por cliente (do vendedor)
+        # Calcula última venda por cliente (do vendedor ou global se EMPRESA)
         df_clientes_ultima_venda = df_vendedor.groupby('Empresa').agg({
             'T007_Data_Emissao': 'max',
             'Valor_Venda': ['sum', 'count']
@@ -531,7 +573,7 @@ with tab3:
         # Filtra clientes com faturamento mínimo
         df_clientes_ultima_venda = df_clientes_ultima_venda[
             df_clientes_ultima_venda['Faturamento_Total'] >= FATURAMENTO_MINIMO_INATIVIDADE
-        ]
+        ].copy()
         
         # Calcula dias de inatividade
         data_referencia = df_vendedor['T007_Data_Emissao'].max()
@@ -539,25 +581,47 @@ with tab3:
             data_referencia - df_clientes_ultima_venda['Ultima_Venda']
         ).dt.days
         
+        # Lógica para calcular o Ticket Médio dos ÚLTIMOS 6 MESES EM QUE O CLIENTE ESTEVE ATIVO
+        def calcular_ticket_6m(empresa):
+            df_cliente = df_vendedor[df_vendedor['Empresa'] == empresa]
+            if df_cliente.empty: 
+                return 0
+            ultima_data = df_cliente['T007_Data_Emissao'].max()
+            seis_meses_antes = ultima_data - pd.Timedelta(days=180)
+            
+            # Filtra apenas compras feitas nos 6 meses finais de atividade do cliente
+            vendas_6m = df_cliente[df_cliente['T007_Data_Emissao'] >= seis_meses_antes]
+            if vendas_6m.empty: 
+                return 0
+            return vendas_6m['Valor_Venda'].sum() / len(vendas_6m)
+
+        # Aplica cálculo de ticket e classificação
+        df_clientes_ultima_venda['Ticket_Medio_6m'] = df_clientes_ultima_venda['Empresa'].apply(calcular_ticket_6m)
+        
+        def classificar_cliente(ticket):
+            if ticket >= 5000: return 'AA'
+            elif ticket >= 3000: return 'A'
+            elif ticket >= 1500: return 'B'
+            elif ticket >= 700: return 'C'
+            else: return 'D'
+
+        df_clientes_ultima_venda['Classificacao'] = df_clientes_ultima_venda['Ticket_Medio_6m'].apply(classificar_cliente)
+        
         # Ordena por inatividade
         df_clientes_ultima_venda = df_clientes_ultima_venda.sort_values('Dias_Inatividade', ascending=False)
         
         if len(df_clientes_ultima_venda) == 0:
             st.info("Nenhum cliente inativo encontrado com faturamento mínimo")
         else:
-            # Métricas
+            # Métricas Gerais
             col1, col2, col3 = st.columns(3)
-            
             inativos_90 = len(df_clientes_ultima_venda[df_clientes_ultima_venda['Dias_Inatividade'] >= 90])
             inativos_180 = len(df_clientes_ultima_venda[df_clientes_ultima_venda['Dias_Inatividade'] >= 180])
             inativos_360 = len(df_clientes_ultima_venda[df_clientes_ultima_venda['Dias_Inatividade'] >= 360])
             
-            with col1:
-                st.metric("Inativo > 90 dias", inativos_90)
-            with col2:
-                st.metric("Inativo > 180 dias", inativos_180)
-            with col3:
-                st.metric("Inativo > 1 ano", inativos_360)
+            with col1: st.metric("Inativo > 90 dias", inativos_90)
+            with col2: st.metric("Inativo > 180 dias", inativos_180)
+            with col3: st.metric("Inativo > 1 ano", inativos_360)
             
             # Gráfico de distribuição
             st.subheader("Distribuição de Inatividade")
@@ -572,16 +636,33 @@ with tab3:
             )
             st.plotly_chart(fig_inatividade, width='stretch', key=f"fig_inatividade_{vendedora_selecionada}")
             
+            # Resumo por Classificação
+            st.subheader("Resumo por Classificação (Últimos 6m do cliente)")
+            df_resumo_curva = df_clientes_ultima_venda['Classificacao'].value_counts().reset_index()
+            df_resumo_curva.columns = ['Curva', 'Qtd Clientes']
+            
+            # Ordena customizado (AA -> D)
+            ordem_curva = {'AA': 1, 'A': 2, 'B': 3, 'C': 4, 'D': 5}
+            df_resumo_curva['Ordem'] = df_resumo_curva['Curva'].map(ordem_curva)
+            df_resumo_curva = df_resumo_curva.sort_values('Ordem').drop('Ordem', axis=1)
+            
+            st.dataframe(df_resumo_curva, hide_index=True, use_container_width=True)
+
             # Tabela de clientes inativos
             st.subheader("Clientes Inativos (Ordenado por Inatividade)")
             df_inativos_display = df_clientes_ultima_venda.copy()
             df_inativos_display['Ultima_Venda'] = df_inativos_display['Ultima_Venda'].dt.strftime('%d/%m/%Y')
             
+            # Reorganizando colunas para visualização
+            cols_display = ['Empresa', 'Classificacao', 'Ticket_Medio_6m', 'Ultima_Venda', 'Dias_Inatividade', 'Faturamento_Total', 'Num_Vendas']
+            
             st.dataframe(
-                df_inativos_display[['Empresa', 'Ultima_Venda', 'Dias_Inatividade', 'Faturamento_Total', 'Num_Vendas']],
+                df_inativos_display[cols_display],
                 width='stretch',
                 hide_index=True,
                 column_config={
+                    "Classificacao": st.column_config.TextColumn("Curva"),
+                    "Ticket_Medio_6m": st.column_config.NumberColumn("Ticket Médio (6m)", format="R$ %.2f"),
                     "Faturamento_Total": st.column_config.NumberColumn("Faturamento Total", format="R$ %.2f")
                 }
             )
@@ -589,33 +670,34 @@ with tab3:
 
 # =============== TAB 4: RANKING ===============
 with tab4:
+    # A aba de ranking sempre mostrará todas as vendedoras, independente se "EMPRESA" estiver selecionada
     st.subheader("🏆 Ranking de Vendedoras")
     st.markdown(f"**Período:** {data_inicio.strftime('%m/%Y')}")
     
     # Processa dados para ranking de TODAS as vendedoras
-    vendedoras_uniques = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
-    vendedoras_uniques = [v for v in vendedoras_uniques if v.upper() not in VENDEDORES_OCULTOS]
+    vendedoras_uniques_ranking = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
+    vendedoras_uniques_ranking = [v for v in vendedoras_uniques_ranking if v.upper() not in VENDEDORES_OCULTOS]
     
     # Cria estrutura para ranking
     ranking_data = []
     
-    for vendedora in vendedoras_uniques:
+    for vendedora_rank in vendedoras_uniques_ranking:
         # Vendas do período
-        df_vendedora = df_filtered[df_filtered['vendedor.C007_Primeiro_Nome'] == vendedora]
-        total_vendas = df_vendedora['Valor_Venda'].sum()
+        df_vendedora = df_filtered[df_filtered['vendedor.C007_Primeiro_Nome'] == vendedora_rank]
+        total_vendas_vendedora = df_vendedora['Valor_Venda'].sum()
         
         # Procura metas
-        meta_vendedor = None
-        nome_normalizado = normalizar_nome(vendedora)
+        meta_vendedor_rank = None
+        nome_normalizado_rank = normalizar_nome(vendedora_rank)
         for vendedor_meta in metas_data:
-            if normalizar_nome(vendedor_meta['nome']) == nome_normalizado:
-                meta_vendedor = vendedor_meta
+            if normalizar_nome(vendedor_meta['nome']) == nome_normalizado_rank:
+                meta_vendedor_rank = vendedor_meta
                 break
         
         # Calcula metas no período
         meta_total = 0
-        if meta_vendedor is not None:
-            for meta in meta_vendedor['metas']:
+        if meta_vendedor_rank is not None:
+            for meta in meta_vendedor_rank['metas']:
                 meta_date_inicio = pd.to_datetime(meta['data_inicio']).date()
                 meta_date_fim = pd.to_datetime(meta['data_fim']).date()
                 
@@ -624,11 +706,11 @@ with tab4:
                     meta_total += meta['valor']
         
         # Calcula percentual
-        percentual_atingido = (total_vendas / meta_total * 100) if meta_total > 0 else 0
+        percentual_atingido = (total_vendas_vendedora / meta_total * 100) if meta_total > 0 else 0
         
         ranking_data.append({
             'Posição': 0,  # Será preenchido depois
-            'Vendedora': vendedora,
+            'Vendedora': vendedora_rank,
             '% Meta': percentual_atingido,
             'tem_meta': meta_total > 0
         })
@@ -704,7 +786,7 @@ with tab4:
 
 
 st.markdown("---")
-st.markdown("👩‍💼 Dashboard Individual - Última atualização: {} | Período: {} a {}".format(
+st.markdown("👩‍💼 Dashboard - Última atualização: {} | Período: {} a {}".format(
     datetime.now().strftime("%d/%m/%Y %H:%M"),
     data_inicio.strftime("%d/%m/%Y"),
     data_fim.strftime("%d/%m/%Y")
