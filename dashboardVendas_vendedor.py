@@ -9,9 +9,9 @@ import json
 
 VENDEDORES_OCULTOS = [
     "DESCONHECIDO",
-    "ANDRE",
-    "INANJARA",
-    "JUSLIENE",
+    # "ANDRE",
+    # "INANJARA",
+    # "JUSLIENE",
     "LETICIA",
     "THIAGO",
     "VERONICA",
