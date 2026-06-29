@@ -472,7 +472,7 @@ with tab3:
                         text_auto=True
                     )
                     fig_status.update_layout(yaxis_title="Qtd Clientes")
-                    st.plotly_chart(fig_status, use_container_width=True)
+                    st.plotly_chart(fig_status, width='stretch')
                     
                 with col_graf2:
                     # Scatter Plot: Dias Inatividade vs Ticket
@@ -492,7 +492,7 @@ with tab3:
                     fig_scatter.add_vline(x=30, line_dash="dash", line_color="green", annotation_text="Ativos", annotation_position="top left")
                     fig_scatter.add_vline(x=90, line_dash="dash", line_color="red", annotation_text="Inativos", annotation_position="top right")
                     
-                    st.plotly_chart(fig_scatter, use_container_width=True)
+                    st.plotly_chart(fig_scatter, width='stretch')
             else:
                 st.info("Não há clientes nas categorias AA, A ou B para análise de risco neste período.")
 
