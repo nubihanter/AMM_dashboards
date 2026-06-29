@@ -646,7 +646,7 @@ with tab3:
             df_resumo_curva['Ordem'] = df_resumo_curva['Curva'].map(ordem_curva)
             df_resumo_curva = df_resumo_curva.sort_values('Ordem').drop('Ordem', axis=1)
             
-            st.dataframe(df_resumo_curva, hide_index=True, use_container_width=True)
+            st.dataframe(df_resumo_curva, hide_index=True, width='stretch')
 
             # Tabela de clientes inativos
             st.subheader("Clientes Inativos (Ordenado por Inatividade)")
