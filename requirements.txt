@@ -7,3 +7,4 @@ requests
 python-dotenv
 beautifulsoup4
 extra-streamlit-components
+starlette<0.40.0
