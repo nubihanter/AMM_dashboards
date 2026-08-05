@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import os
 import json
 
+USUARIO_PIPERUN_META_EMPRESA = "MARCELO NERIS"
+
 VENDEDORES_OCULTOS = [
     "DESCONHECIDO",
     # "ANDRE",
@@ -231,19 +233,12 @@ with tab1:
     meta_vendedor = None
     
     if vendedora_selecionada == "EMPRESA":
-        metas_agrupadas = {}
+        # Busca a meta cadastrada para o usuário configurado para a Empresa (ex: Marcelo Neris)
+        nome_meta_empresa_norm = normalizar_nome(USUARIO_PIPERUN_META_EMPRESA)
         for vendedor_meta in metas_data:
-            for meta in vendedor_meta['metas']:
-                key = (meta['data_inicio'], meta['data_fim'])
-                if key not in metas_agrupadas: metas_agrupadas[key] = 0
-                metas_agrupadas[key] += meta['valor']
-        if metas_agrupadas:
-            metas_empresa_list = []
-            for (inicio, fim), valor in metas_agrupadas.items():
-                metas_empresa_list.append({
-                    'data_inicio': inicio, 'data_fim': fim, 'valor': valor, 'goal_title': 'Meta Global Consolidada'
-                })
-            meta_vendedor = {'nome': 'EMPRESA', 'metas': metas_empresa_list}
+            if normalizar_nome(vendedor_meta['nome']) == nome_meta_empresa_norm:
+                meta_vendedor = vendedor_meta
+                break
     else:
         nome_normalizado = normalizar_nome(vendedora_selecionada)
         for vendedor_meta in metas_data:
@@ -286,21 +281,56 @@ with tab1:
                 meta_periodo += meta['valor']
                 metas_list.append({'período': f"{meta_date_inicio.strftime('%m/%Y')}", 'valor': meta['valor'], 'titulo': meta['goal_title']})
         
+        # Realizado atual
         realizado = total_vendas
         percentual_atingido = (realizado / meta_periodo * 100) if meta_periodo > 0 else 0
         
+        # --- CÁLCULO PONDERADO POR DIAS DECORRIDOS (PRORATA) ---
+        hoje = datetime.now().date()
+        
+        # Identifica quantos dias o mês do filtro possui (ex: 28, 30, 31)
+        dias_no_mes = (data_fim - data_inicio).days + 1
+        
+        # Determina quantos dias já se passaram no mês selecionado
+        if ano_selecionado < hoje.year or (ano_selecionado == hoje.year and mes_selecionado < hoje.month):
+            # Mês já encerrado: considera 100% dos dias
+            dias_decorridos = dias_no_mes
+        elif ano_selecionado > hoje.year or (ano_selecionado == hoje.year and mes_selecionado > hoje.month):
+            # Mês futuro: considera 0 dias
+            dias_decorridos = 0
+        else:
+            # Mês atual: considera os dias decorridos até hoje
+            dias_decorridos = min(hoje.day, dias_no_mes)
+
+        # Proporção do mês decorrida (ex: 15/30 = 0.5 ou 50%)
+        proporcao_decorrida = (dias_decorridos / dias_no_mes) if dias_no_mes > 0 else 1.0
+
+        # Meta esperada para o dia atual do mês
+        meta_proporcional = meta_periodo * proporcao_decorrida
+
+        # Percentual atingido em relação à meta esperada no dia (% do ritmo ideal)
+        percentual_ritmo = (realizado / meta_proporcional * 100) if meta_proporcional > 0 else (100.0 if percentual_atingido >= 100 else 0.0)
+
+        # --- AVALIAÇÃO DE STATUS PONDERADA ---
         if percentual_atingido >= 100:
             status, status_class = "✅ META ATINGIDA", "status-ok"
-        elif percentual_atingido >= 80:
+        elif percentual_ritmo >= 100:
+            status, status_class = "✅ NO RITMO DA META", "status-ok"
+        elif percentual_ritmo >= 80:
             status, status_class = "⚠️ META PRÓXIMA", "status-warning"
         else:
             status, status_class = "❌ ABAIXO DA META", "status-alert"
-        
+
+        # Métricas exibidas na tela
         col1, col2, col3, col4 = st.columns(4)
-        with col1: st.metric("🎯 Meta Total", f"R$ {meta_periodo:,.0f}")
-        with col2: st.metric("📊 Realizado", f"R$ {realizado:,.0f}")
-        with col3: st.metric("📈 % Atingido", f"{percentual_atingido:.1f}%")
-        with col4: st.markdown(f"<div class='{status_class}'>{status}</div>", unsafe_allow_html=True)
+        with col1: 
+            st.metric("🎯 Meta Total", f"R$ {meta_periodo:,.0f}", help=f"Meta proporcional até dia {dias_decorridos}/{dias_no_mes}: R$ {meta_proporcional:,.0f}")
+        with col2: 
+            st.metric("📊 Realizado", f"R$ {realizado:,.0f}")
+        with col3: 
+            st.metric("% Atingido (Mês / Ritmo)", f"{percentual_atingido:.1f}%", delta=f"{percentual_ritmo:.1f}% do ritmo esperado" if proporcao_decorrida < 1.0 else None)
+        with col4: 
+            st.markdown(f"<div class='{status_class}'>{status}</div>", unsafe_allow_html=True)
         
         col1, col2 = st.columns(2)
         with col1:
