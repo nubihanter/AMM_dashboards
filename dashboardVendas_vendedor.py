@@ -588,17 +588,27 @@ with tab3:
 
 # =============== TAB 4: RANKING ===============
 with tab4:
-    st.subheader("🏆 Ranking de Vendedoras")
+    EXCLUDE_FROM_RANKING = [
+                            "MARCELO",
+                            "INANJARA",
+                            "JUSLIENE",
+                            "MAYARA",
+                            "ANDRE",
+                            "WILMA"
+                            ]  # Exclui vendedores ocultos do ranking geral
+    st.subheader("🏆 Ranking de Vendedores")
     st.markdown(f"**Período:** {data_inicio.strftime('%m/%Y')}")
     
     vendedoras_uniques_ranking = sorted(df['vendedor.C007_Primeiro_Nome'].unique().tolist())
     vendedoras_uniques_ranking = [v for v in vendedoras_uniques_ranking if v.upper() not in VENDEDORES_OCULTOS]
-    
+    vendedoras_uniques_ranking = [v for v in vendedoras_uniques_ranking if v.upper() not in EXCLUDE_FROM_RANKING]
     ranking_data = []
     
     for vendedora_rank in vendedoras_uniques_ranking:
         df_vendedora = df_filtered[df_filtered['vendedor.C007_Primeiro_Nome'] == vendedora_rank]
         total_vendas_vendedora = df_vendedora['Valor_Venda'].sum()
+        # if total_vendas_vendedora <=0:
+        #     continue  # Pula vendedoras sem vendas no período
         
         meta_vendedor_rank = None
         nome_normalizado_rank = normalizar_nome(vendedora_rank)
